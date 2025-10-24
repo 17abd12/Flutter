@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../widgets/feature_template.dart';
-import '../theme.dart';
 
 class AILearningPage extends StatelessWidget {
   const AILearningPage({super.key});

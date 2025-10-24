@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/main_page.dart';
+import 'screens/home_screen.dart';
 import 'theme.dart';
 
 void main() {
@@ -13,10 +13,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'AI Meal Planner (Frontend)',
+      title: 'AI Meal Planner',
       theme: AppTheme.lightTheme,
-
-      home: const MainPage(), // 👈 Start with MainPage now
+      home: const HomeScreen(), // Modern dashboard with bottom navigation
     );
   }
 }

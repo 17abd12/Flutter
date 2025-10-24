@@ -1,0 +1,147 @@
+import 'package:flutter/material.dart';
+import '../theme.dart';
+import '../widgets/calorie_card.dart';
+import '../widgets/habit_card.dart';
+import '../widgets/dashboard_grid.dart';
+import '../widgets/weight_card.dart';
+import '../widgets/discover_section_new.dart';
+import 'login_screen.dart';
+import 'signup_screen.dart';
+
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  bool _isLoggedIn = false;
+
+  void _handleLogin() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    ).then((value) {
+      if (value == true) {
+        setState(() {
+          _isLoggedIn = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logged in successfully!'),
+            backgroundColor: AppTheme.primary,
+          ),
+        );
+      }
+    });
+  }
+
+  void _handleSignup() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SignupScreen()),
+    ).then((value) {
+      if (value == true) {
+        setState(() {
+          _isLoggedIn = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account created successfully!'),
+            backgroundColor: AppTheme.primary,
+          ),
+        );
+      }
+    });
+  }
+
+  void _handleLogout() {
+    setState(() {
+      _isLoggedIn = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Logged out successfully'),
+        backgroundColor: AppTheme.primary,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        backgroundColor: AppTheme.primary,
+        elevation: 0,
+        title: const Text(
+          'Today',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        actions: [
+          if (!_isLoggedIn) ...[
+            IconButton(
+              icon: const Icon(Icons.login),
+              tooltip: 'Login',
+              onPressed: _handleLogin,
+            ),
+            IconButton(
+              icon: const Icon(Icons.person_add),
+              tooltip: 'Sign Up',
+              onPressed: _handleSignup,
+            ),
+          ] else ...[
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Logout',
+              onPressed: _handleLogout,
+            ),
+          ],
+          // TextButton(
+          //   onPressed: () {
+          //     // Edit action
+          //   },
+          //   child: const Text(
+          //     'Edit',
+          //     style: TextStyle(
+          //       fontSize: 16,
+          //       color: Colors.blue,
+          //       fontWeight: FontWeight.w500,
+          //     ),
+          //   ),
+          // ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: ListView(
+        children: const [
+          // 1. Calories Card
+          CalorieCard(),
+
+          // 2. Habit Card
+          HabitCard(),
+
+          SizedBox(height: 16),
+
+          // 3. Dashboard Grid (Steps & Exercise)
+          DashboardGrid(),
+
+          SizedBox(height: 8),
+
+          // 4. Weight Card
+          WeightCard(),
+
+          // 5. Discover Section
+          DiscoverSection(),
+
+          SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}

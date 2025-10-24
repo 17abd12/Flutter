@@ -26,7 +26,9 @@ class CustomTextField extends StatelessWidget {
       style: Theme.of(context).textTheme.bodyLarge, // 🌿 use theme text
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: AppTheme.textDark), // 🌿 organic text color
+        labelStyle: TextStyle(
+          color: AppTheme.textDark,
+        ), // 🌿 organic text color
         prefixIcon: Icon(icon, color: AppTheme.primary), // 🌿 themed icon
         filled: true,
         fillColor: AppTheme.card, // 🌿 soft background for text field
