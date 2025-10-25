@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/calorie_card.dart';
-import '../widgets/habit_card.dart';
 import '../widgets/dashboard_grid.dart';
 import '../widgets/weight_card.dart';
 import '../widgets/discover_section_new.dart';
@@ -119,27 +118,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         children: const [
           // 1. Calories Card
           CalorieCard(),
 
-          // 2. Habit Card
-          HabitCard(),
+          SizedBox(height: 8),
 
-          SizedBox(height: 16),
-
-          // 3. Dashboard Grid (Steps & Exercise)
+          // 2. Dashboard Grid (Weight Input & Exercise)
           DashboardGrid(),
 
           SizedBox(height: 8),
 
-          // 4. Weight Card
+          // 3. Weight Card
           WeightCard(),
 
-          // 5. Discover Section
+          SizedBox(height: 8),
+
+          // 4. Discover Section
           DiscoverSection(),
 
-          SizedBox(height: 24),
+          SizedBox(height: 16),
         ],
       ),
     );

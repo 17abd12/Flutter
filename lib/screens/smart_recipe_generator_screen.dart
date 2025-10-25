@@ -362,8 +362,14 @@ class _SmartRecipeGeneratorScreenState
           DropdownButton<String>(
             value: value,
             underline: const SizedBox(),
+            alignment: AlignmentDirectional.centerEnd,
+            isDense: true,
             items: items.map((String item) {
-              return DropdownMenuItem<String>(value: item, child: Text(item));
+              return DropdownMenuItem<String>(
+                value: item,
+                alignment: AlignmentDirectional.centerEnd,
+                child: Text(item),
+              );
             }).toList(),
             onChanged: onChanged,
             style: const TextStyle(

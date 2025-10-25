@@ -10,10 +10,12 @@ class WeightCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final weightData = MockData.weightHistory;
     final goalWeight = MockData.userProfile['goalWeight'] as double;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
       decoration: BoxDecoration(
         color: AppTheme.card,
         borderRadius: BorderRadius.circular(20),
@@ -31,18 +33,18 @@ class WeightCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Weight',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: isSmallScreen ? 18 : 20,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textDark,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 8 : 10,
+                  vertical: isSmallScreen ? 4 : 6,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.grey[200],
@@ -53,14 +55,14 @@ class WeightCard extends StatelessWidget {
                     Text(
                       'Last 90 days',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: isSmallScreen ? 10 : 12,
                         color: AppTheme.textDark.withOpacity(0.7),
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: isSmallScreen ? 2 : 4),
                     Icon(
                       Icons.arrow_drop_down,
-                      size: 18,
+                      size: isSmallScreen ? 16 : 18,
                       color: AppTheme.textDark.withOpacity(0.7),
                     ),
                   ],
@@ -68,16 +70,16 @@ class WeightCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isSmallScreen ? 12 : 16),
           // Simple Line Chart
           SizedBox(
-            height: 150,
+            height: isSmallScreen ? 120 : 140,
             child: CustomPaint(
-              size: const Size(double.infinity, 150),
+              size: Size(double.infinity, isSmallScreen ? 120 : 140),
               painter: WeightChartPainter(weightData, goalWeight),
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isSmallScreen ? 6 : 8),
           // Legend
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

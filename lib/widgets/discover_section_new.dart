@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
-import '../screens/sleep_screen.dart';
 import '../screens/smart_recipe_generator_screen.dart';
 import '../screens/real_time_meal_adjustment_screen.dart';
 
@@ -9,49 +8,38 @@ class DiscoverSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Discover',
             style: TextStyle(
-              fontSize: 22,
+              fontSize: isSmallScreen ? 18 : 20,
               fontWeight: FontWeight.bold,
               color: AppTheme.textDark,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isSmallScreen ? 12 : 16),
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+            crossAxisSpacing: isSmallScreen ? 8 : 12,
+            mainAxisSpacing: isSmallScreen ? 8 : 12,
             childAspectRatio: 1.1,
             children: [
-              _buildDiscoverCard(
-                context: context,
-                icon: Icons.bedtime_outlined,
-                title: 'Sleep',
-                subtitle: 'Eat right, sleep tight',
-                color: Colors.indigo,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SleepScreen(),
-                    ),
-                  );
-                },
-              ),
               _buildDiscoverCard(
                 context: context,
                 icon: Icons.auto_awesome,
                 title: 'Recipe Generator',
                 subtitle: 'AI-powered recipes',
                 color: Colors.orange,
+                isSmallScreen: isSmallScreen,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -67,27 +55,13 @@ class DiscoverSection extends StatelessWidget {
                 title: 'Meal Tracking',
                 subtitle: 'Log meals in real-time',
                 color: Colors.red,
+                isSmallScreen: isSmallScreen,
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
                           const RealTimeMealAdjustmentScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildDiscoverCard(
-                context: context,
-                icon: Icons.sync,
-                title: 'Sync up',
-                subtitle: 'Link apps & devices',
-                color: AppTheme.primary,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Sync feature coming soon!'),
-                      backgroundColor: AppTheme.primary,
                     ),
                   );
                 },
@@ -105,12 +79,13 @@ class DiscoverSection extends StatelessWidget {
     required String title,
     required String subtitle,
     required Color color,
+    required bool isSmallScreen,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isSmallScreen ? 12 : 14),
         decoration: BoxDecoration(
           color: AppTheme.card,
           borderRadius: BorderRadius.circular(16),
@@ -126,27 +101,27 @@ class DiscoverSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 28),
+              child: Icon(icon, color: color, size: isSmallScreen ? 24 : 28),
             ),
             const Spacer(),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 16,
+              style: TextStyle(
+                fontSize: isSmallScreen ? 14 : 16,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textDark,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: isSmallScreen ? 2 : 4),
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: isSmallScreen ? 10 : 12,
                 color: AppTheme.textDark.withValues(alpha: 0.6),
               ),
             ),
