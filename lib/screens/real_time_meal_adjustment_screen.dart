@@ -13,6 +13,9 @@ class _RealTimeMealAdjustmentScreenState
     extends State<RealTimeMealAdjustmentScreen> {
   final TextEditingController _mealNameController = TextEditingController();
   final TextEditingController _caloriesController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+
+  int _selectedOption = 0; // 0: Enter calories, 1: AI estimate from description
 
   int dailyGoal = 1500;
   int consumedCalories = 650;
@@ -36,30 +39,71 @@ class _RealTimeMealAdjustmentScreenState
   void dispose() {
     _mealNameController.dispose();
     _caloriesController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
   void _addMeal() {
-    if (_mealNameController.text.trim().isEmpty ||
-        _caloriesController.text.trim().isEmpty) {
+    if (_mealNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill in all fields'),
+          content: Text('Please enter meal name'),
           backgroundColor: Colors.orange,
         ),
       );
       return;
     }
 
-    final calories = int.tryParse(_caloriesController.text);
-    if (calories == null || calories <= 0) {
+    int calories;
+
+    if (_selectedOption == 0) {
+      // Manual calorie entry
+      if (_caloriesController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter calories'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final parsedCalories = int.tryParse(_caloriesController.text);
+      if (parsedCalories == null || parsedCalories <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid calorie amount'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      calories = parsedCalories;
+    } else {
+      // AI estimation from description
+      if (_descriptionController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter meal description'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // TODO: Call AI API to estimate calories from description
+      // For now, using mock estimation based on description length
+      calories = _estimateCaloriesFromDescription(_descriptionController.text);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid calorie amount'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: Text(
+            'AI estimated $calories calories from your description',
+          ),
+          backgroundColor: AppTheme.primary,
+          duration: const Duration(seconds: 3),
         ),
       );
-      return;
     }
 
     setState(() {
@@ -72,6 +116,7 @@ class _RealTimeMealAdjustmentScreenState
       consumedCalories += calories;
       _mealNameController.clear();
       _caloriesController.clear();
+      _descriptionController.clear();
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -80,6 +125,44 @@ class _RealTimeMealAdjustmentScreenState
         backgroundColor: AppTheme.primary,
       ),
     );
+  }
+
+  // Mock AI estimation - Replace with actual AI API call
+  int _estimateCaloriesFromDescription(String description) {
+    // Simple mock logic based on keywords
+    final lowerDesc = description.toLowerCase();
+    int baseCalories = 200;
+
+    // Portion size modifiers
+    if (lowerDesc.contains('small') || lowerDesc.contains('little')) {
+      baseCalories = 150;
+    } else if (lowerDesc.contains('large') || lowerDesc.contains('big')) {
+      baseCalories = 400;
+    } else if (lowerDesc.contains('two') || lowerDesc.contains('2')) {
+      baseCalories = 500;
+    } else if (lowerDesc.contains('three') || lowerDesc.contains('3')) {
+      baseCalories = 700;
+    }
+
+    // Food type modifiers
+    if (lowerDesc.contains('rice') ||
+        lowerDesc.contains('pasta') ||
+        lowerDesc.contains('bread')) {
+      baseCalories += 150;
+    }
+    if (lowerDesc.contains('ice cream') ||
+        lowerDesc.contains('cake') ||
+        lowerDesc.contains('dessert')) {
+      baseCalories += 200;
+    }
+    if (lowerDesc.contains('salad') || lowerDesc.contains('vegetables')) {
+      baseCalories = (baseCalories * 0.6).round();
+    }
+    if (lowerDesc.contains('fried') || lowerDesc.contains('oil')) {
+      baseCalories += 150;
+    }
+
+    return baseCalories;
   }
 
   void _removeMeal(int index) {
@@ -308,6 +391,8 @@ class _RealTimeMealAdjustmentScreenState
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                // Meal Name (common for both options)
                 TextField(
                   controller: _mealNameController,
                   decoration: InputDecoration(
@@ -321,28 +406,119 @@ class _RealTimeMealAdjustmentScreenState
                     fillColor: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _caloriesController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Calories',
-                    hintText: 'e.g., 350',
-                    prefixIcon: const Icon(Icons.local_fire_department),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 16),
+
+                // Option selector
+                Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<int>(
+                        title: const Text(
+                          'Enter Calories',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        value: 0,
+                        groupValue: _selectedOption,
+                        onChanged: (value) =>
+                            setState(() => _selectedOption = value!),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        activeColor: AppTheme.primary,
+                      ),
                     ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
+                    Expanded(
+                      child: RadioListTile<int>(
+                        title: const Text(
+                          'AI Estimate',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        value: 1,
+                        groupValue: _selectedOption,
+                        onChanged: (value) =>
+                            setState(() => _selectedOption = value!),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        activeColor: AppTheme.primary,
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 12),
+
+                // Option 0: Manual calorie entry
+                if (_selectedOption == 0)
+                  TextField(
+                    controller: _caloriesController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Calories',
+                      hintText: 'e.g., 350',
+                      prefixIcon: const Icon(Icons.local_fire_department),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+
+                // Option 1: Description for AI estimation
+                if (_selectedOption == 1) ...[
+                  TextField(
+                    controller: _descriptionController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Describe Your Meal',
+                      hintText:
+                          'e.g., "A small cup of ice cream" or "Two full plates of rice with curry"',
+                      prefixIcon: const Icon(Icons.description),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.lightbulb_outline,
+                          color: Colors.blue,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'AI will estimate calories based on your description',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue[900],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: _addMeal,
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Meal'),
+                    label: Text(
+                      _selectedOption == 0
+                          ? 'Add Meal'
+                          : 'Let AI Estimate & Add',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
