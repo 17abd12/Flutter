@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_textfield.dart';
 import '../theme.dart'; // 🌿 Import the organic theme
+import 'goal_setup_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -82,7 +83,11 @@ class _SignupScreenState extends State<SignupScreen> {
                       ElevatedButton(
                         onPressed: () {
                           if (_formKey.currentState!.validate()) {
-                            Navigator.pop(context);
+                            Navigator.push(
+  context,
+  MaterialPageRoute(builder: (context) => const GoalSetupScreen()),
+);
+
                           }
                         },
                         style: ElevatedButton.styleFrom(
