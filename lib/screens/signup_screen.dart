@@ -23,88 +23,120 @@ class _SignupScreenState extends State<SignupScreen> {
         decoration: const BoxDecoration(
           gradient: AppTheme.organicGradient, // 🌿 Organic background
         ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Card(
-              color: AppTheme.card, // 🌿 Match organic card background
-              elevation: 10,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(25),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        "Create Account 📝",
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppTheme.textDark,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 25),
-
-                      // 🌿 Themed text fields
-                      CustomTextField(
-                        controller: emailController,
-                        label: "Email",
-                        icon: Icons.email,
-                        validator: (v) => v == null || !v.contains("@")
-                            ? "Enter valid email"
-                            : null,
-                      ),
-                      const SizedBox(height: 20),
-                      CustomTextField(
-                        controller: passwordController,
-                        label: "Password",
-                        icon: Icons.lock,
-                        obscureText: true,
-                        validator: (v) =>
-                            v == null || v.length < 6 ? "Too short" : null,
-                      ),
-                      const SizedBox(height: 20),
-                      CustomTextField(
-                        controller: confirmController,
-                        label: "Confirm Password",
-                        icon: Icons.lock_outline,
-                        obscureText: true,
-                        validator: (v) => v != passwordController.text
-                            ? "Passwords don't match"
-                            : null,
-                      ),
-                      const SizedBox(height: 30),
-
-                      // 🌿 Themed sign-up button
-                      ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            Navigator.push(
-  context,
-  MaterialPageRoute(builder: (context) => const GoalSetupScreen()),
-);
-
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
-                          foregroundColor: AppTheme.textLight,
-                          padding: const EdgeInsets.symmetric(vertical: 15,horizontal: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text("Sign Up"),
-                      ),
-                    ],
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Home button
+              Align(
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.home,
+                      color: AppTheme.textDark,
+                      size: 32,
+                    ),
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).popUntil((route) => route.isFirst),
                   ),
                 ),
               ),
-            ),
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Card(
+                      color: AppTheme.card, // 🌿 Match organic card background
+                      elevation: 10,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(25),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "Create Account 📝",
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      color: AppTheme.textDark,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                              const SizedBox(height: 25),
+
+                              // 🌿 Themed text fields
+                              CustomTextField(
+                                controller: emailController,
+                                label: "Email",
+                                icon: Icons.email,
+                                validator: (v) => v == null || !v.contains("@")
+                                    ? "Enter valid email"
+                                    : null,
+                              ),
+                              const SizedBox(height: 20),
+                              CustomTextField(
+                                controller: passwordController,
+                                label: "Password",
+                                icon: Icons.lock,
+                                obscureText: true,
+                                validator: (v) => v == null || v.length < 6
+                                    ? "Too short"
+                                    : null,
+                              ),
+                              const SizedBox(height: 20),
+                              CustomTextField(
+                                controller: confirmController,
+                                label: "Confirm Password",
+                                icon: Icons.lock_outline,
+                                obscureText: true,
+                                validator: (v) => v != passwordController.text
+                                    ? "Passwords don't match"
+                                    : null,
+                              ),
+                              const SizedBox(height: 30),
+
+                              // 🌿 Themed sign-up button
+                              ElevatedButton(
+                                onPressed: () {
+                                  if (_formKey.currentState!.validate()) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const GoalSetupScreen(),
+                                      ),
+                                    );
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primary,
+                                  foregroundColor: AppTheme.textLight,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 15,
+                                    horizontal: 15,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text("Sign Up"),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -13,14 +13,18 @@ class RecipesScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: AppTheme.primary,
-        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.boldGradient),
+        ),
+        elevation: 4,
+        shadowColor: Colors.black26,
         title: const Text(
           'Recipes',
           style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
             color: Colors.white,
+            letterSpacing: -0.8,
           ),
         ),
         actions: [
@@ -33,10 +37,18 @@ class RecipesScreen extends StatelessWidget {
         children: [
           // Header Section
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              gradient: AppTheme.organicGradient,
-              borderRadius: BorderRadius.circular(20),
+              gradient: AppTheme.sunsetGradient,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                  spreadRadius: 2,
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

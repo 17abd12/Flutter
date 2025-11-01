@@ -72,14 +72,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: AppTheme.primary,
-        elevation: 0,
-        title: const Text(
-          'Today',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.boldGradient),
+        ),
+        elevation: 4,
+        shadowColor: Colors.black26,
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Colors.white, Color(0xFFE0E0E0)],
+          ).createShader(bounds),
+          child: const Text(
+            'Today',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: -1,
+            ),
           ),
         ),
         actions: [

@@ -16,12 +16,17 @@ class DiscoverSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Discover',
-            style: TextStyle(
-              fontSize: isSmallScreen ? 18 : 20,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
+          ShaderMask(
+            shaderCallback: (bounds) =>
+                AppTheme.boldGradient.createShader(bounds),
+            child: Text(
+              'Discover',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 24 : 28,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: -0.8,
+              ),
             ),
           ),
           SizedBox(height: isSmallScreen ? 12 : 16),
@@ -87,13 +92,18 @@ class DiscoverSection extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(isSmallScreen ? 12 : 14),
         decoration: BoxDecoration(
-          color: AppTheme.card,
-          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [Colors.white, color.withOpacity(0.1)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: color.withOpacity(0.25),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+              spreadRadius: 1,
             ),
           ],
         ),
@@ -103,10 +113,25 @@ class DiscoverSection extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  colors: [color, color.withOpacity(0.7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              child: Icon(icon, color: color, size: isSmallScreen ? 24 : 28),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: isSmallScreen ? 24 : 28,
+              ),
             ),
             const Spacer(),
             Text(

@@ -14,14 +14,18 @@ class RecipeDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: AppTheme.primary,
-        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.boldGradient),
+        ),
+        elevation: 4,
+        shadowColor: Colors.black26,
         title: Text(
           recipe['name'],
           style: TextStyle(
-            fontSize: isSmallScreen ? 18 : 20,
-            fontWeight: FontWeight.bold,
+            fontSize: isSmallScreen ? 20 : 24,
+            fontWeight: FontWeight.w800,
             color: Colors.white,
+            letterSpacing: -0.5,
           ),
         ),
         actions: [

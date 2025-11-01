@@ -67,14 +67,18 @@ class _SmartRecipeGeneratorScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: AppTheme.primary,
-        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.boldGradient),
+        ),
+        elevation: 4,
+        shadowColor: Colors.black26,
         title: const Text(
           'Smart Recipe Generator',
           style: TextStyle(
             fontSize: 24,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
             color: Colors.white,
+            letterSpacing: -0.5,
           ),
         ),
         actions: [
@@ -100,10 +104,18 @@ class _SmartRecipeGeneratorScreenState
         children: [
           // Header Section
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              gradient: AppTheme.organicGradient,
-              borderRadius: BorderRadius.circular(20),
+              gradient: AppTheme.boldGradient,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                  spreadRadius: 2,
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

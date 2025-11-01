@@ -18,13 +18,18 @@ class CalorieCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
       decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [Colors.white, Colors.grey.shade50],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: AppTheme.primary.withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 2,
           ),
         ],
       ),
@@ -34,12 +39,17 @@ class CalorieCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Calories',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppTheme.textDark,
-                  fontWeight: FontWeight.bold,
-                  fontSize: isSmallScreen ? 18 : 20,
+              ShaderMask(
+                shaderCallback: (bounds) =>
+                    AppTheme.boldGradient.createShader(bounds),
+                child: Text(
+                  'Calories',
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 22 : 26,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
               if (!isSmallScreen)
