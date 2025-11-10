@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'signup_screen.dart';
-import 'main_page.dart';
+import 'home_screen.dart';
 import '../widgets/custom_textfield.dart';
 import '../theme.dart'; // 🌿 Import the organic theme
 
@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Navigator.pushReplacement(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => const MainPage(),
+                                        builder: (context) => const HomeScreen(),
                                       ),
                                     );
                                   }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
-import '../screens/smart_recipe_generator_screen.dart';
-import '../screens/real_time_meal_adjustment_screen.dart';
 
 class DiscoverSection extends StatelessWidget {
-  const DiscoverSection({super.key});
+  final Function(int)? onTabChange;
+  
+  const DiscoverSection({super.key, this.onTabChange});
 
   @override
   Widget build(BuildContext context) {
@@ -46,12 +46,10 @@ class DiscoverSection extends StatelessWidget {
                 color: Colors.orange,
                 isSmallScreen: isSmallScreen,
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SmartRecipeGeneratorScreen(),
-                    ),
-                  );
+                  // Navigate to Recipe Generator tab (index 2)
+                  if (onTabChange != null) {
+                    onTabChange!(2);
+                  }
                 },
               ),
               _buildDiscoverCard(
@@ -62,13 +60,10 @@ class DiscoverSection extends StatelessWidget {
                 color: Colors.red,
                 isSmallScreen: isSmallScreen,
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          const RealTimeMealAdjustmentScreen(),
-                    ),
-                  );
+                  // Navigate to Meal Tracking tab (index 3)
+                  if (onTabChange != null) {
+                    onTabChange!(3);
+                  }
                 },
               ),
             ],

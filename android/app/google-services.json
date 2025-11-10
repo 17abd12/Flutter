@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "894708882238",
+    "project_id": "ai-meal-planner-b1713",
+    "storage_bucket": "ai-meal-planner-b1713.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:894708882238:android:7451f62e08411269edaa6f",
+        "android_client_info": {
+          "package_name": "com.example.my_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwrX8KvDWnymLCMUQvl_paPVYhmKGlpNg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

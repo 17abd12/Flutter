@@ -17,11 +17,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = const [
-    DashboardScreen(),
-    RecipesScreen(),
-    SmartRecipeGeneratorScreen(),
-    RealTimeMealAdjustmentScreen(),
+  List<Widget> get _screens => [
+    DashboardScreen(onTabChange: _onItemTapped),
+    const RecipesScreen(),
+    const SmartRecipeGeneratorScreen(),
+    const RealTimeMealAdjustmentScreen(),
   ];
 
   void _onItemTapped(int index) {

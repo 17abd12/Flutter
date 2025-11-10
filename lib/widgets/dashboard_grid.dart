@@ -80,97 +80,107 @@ class _DashboardGridState extends State<DashboardGrid> {
   Widget _buildWeightInputCard(bool isSmallScreen) {
     return GestureDetector(
       onTap: _showAddWeightDialog,
-      child: Container(
-        height: isSmallScreen ? 170 : 190,
-        padding: EdgeInsets.all(isSmallScreen ? 12 : 14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.white, Colors.blue.shade50],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blue.withOpacity(0.2),
-              blurRadius: 15,
-              offset: const Offset(0, 6),
-              spreadRadius: 1,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Container(
+            constraints: BoxConstraints(
+              minHeight: isSmallScreen ? 160 : 180,
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+            padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.white, Colors.blue.shade50],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: Icon(
-                Icons.scale,
-                color: Colors.white,
-                size: isSmallScreen ? 24 : 28,
-              ),
-            ),
-            SizedBox(height: isSmallScreen ? 8 : 12),
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
-              ).createShader(bounds),
-              child: Text(
-                'Weight',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 17 : 19,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  letterSpacing: -0.3,
-                ),
-              ),
-            ),
-            SizedBox(height: isSmallScreen ? 2 : 4),
-            Text(
-              'Tap to add today\'s weight',
-              style: TextStyle(
-                fontSize: isSmallScreen ? 11 : 13,
-                color: AppTheme.textDark.withOpacity(0.6),
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            SizedBox(height: isSmallScreen ? 8 : 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(isSmallScreen ? 4 : 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.add,
-                    color: AppTheme.primary,
-                    size: isSmallScreen ? 16 : 20,
-                  ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 6),
+                  spreadRadius: 1,
                 ),
               ],
             ),
-          ],
-        ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.scale,
+                    color: Colors.white,
+                    size: isSmallScreen ? 20 : 24,
+                  ),
+                ),
+                SizedBox(height: isSmallScreen ? 6 : 8),
+                Flexible(
+                  child: ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
+                    ).createShader(bounds),
+                    child: Text(
+                      'Weight',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 15 : 17,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: isSmallScreen ? 2 : 3),
+                Flexible(
+                  child: Text(
+                    'Tap to add weight',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 10 : 11,
+                      color: AppTheme.textDark.withOpacity(0.6),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Spacer(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(isSmallScreen ? 4 : 5),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.add,
+                        color: AppTheme.primary,
+                        size: isSmallScreen ? 14 : 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -179,122 +189,140 @@ class _DashboardGridState extends State<DashboardGrid> {
     final exerciseData = MockData.exerciseData;
     return GestureDetector(
       onTap: _showAddExerciseDialog,
-      child: Container(
-        height: isSmallScreen ? 170 : 190,
-        padding: EdgeInsets.all(isSmallScreen ? 12 : 14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.white, Colors.orange.shade50],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.orange.withOpacity(0.2),
-              blurRadius: 15,
-              offset: const Offset(0, 6),
-              spreadRadius: 1,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Container(
+            constraints: BoxConstraints(
+              minHeight: isSmallScreen ? 160 : 180,
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF6F00), Color(0xFFFF8F00)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.white, Colors.orange.shade50],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 6),
+                  spreadRadius: 1,
                 ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.orange.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.fitness_center,
-                color: Colors.white,
-                size: isSmallScreen ? 24 : 28,
-              ),
+              ],
             ),
-            SizedBox(height: isSmallScreen ? 8 : 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [Color(0xFFFF6F00), Color(0xFFFF8F00)],
-                  ).createShader(bounds),
-                  child: Text(
-                    'Exercise',
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? 17 : 19,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                ),
                 Container(
-                  padding: EdgeInsets.all(isSmallScreen ? 4 : 6),
+                  padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF6F00), Color(0xFFFF8F00)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Icon(
-                    Icons.add,
-                    color: AppTheme.primary,
-                    size: isSmallScreen ? 16 : 20,
+                    Icons.fitness_center,
+                    color: Colors.white,
+                    size: isSmallScreen ? 20 : 24,
+                  ),
+                ),
+                SizedBox(height: isSmallScreen ? 6 : 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: ShaderMask(
+                        shaderCallback: (bounds) => const LinearGradient(
+                          colors: [Color(0xFFFF6F00), Color(0xFFFF8F00)],
+                        ).createShader(bounds),
+                        child: Text(
+                          'Exercise',
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 15 : 17,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: EdgeInsets.all(isSmallScreen ? 4 : 5),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.add,
+                        color: AppTheme.primary,
+                        size: isSmallScreen ? 14 : 16,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallScreen ? 6 : 8),
+                Flexible(
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.local_fire_department,
+                        color: Colors.orange,
+                        size: isSmallScreen ? 16 : 18,
+                      ),
+                      SizedBox(width: isSmallScreen ? 4 : 6),
+                      Flexible(
+                        child: Text(
+                          '${exerciseData['caloriesBurned']} cal',
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 11 : 13,
+                            color: AppTheme.textDark,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: isSmallScreen ? 3 : 4),
+                Flexible(
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        color: AppTheme.primary,
+                        size: isSmallScreen ? 16 : 18,
+                      ),
+                      SizedBox(width: isSmallScreen ? 4 : 6),
+                      Flexible(
+                        child: Text(
+                          '${exerciseData['duration']} hr',
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 11 : 13,
+                            color: AppTheme.textDark,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            SizedBox(height: isSmallScreen ? 8 : 12),
-            Row(
-              children: [
-                Icon(
-                  Icons.local_fire_department,
-                  color: Colors.orange,
-                  size: isSmallScreen ? 18 : 20,
-                ),
-                SizedBox(width: isSmallScreen ? 6 : 8),
-                Text(
-                  '${exerciseData['caloriesBurned']} cal',
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? 12 : 14,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: isSmallScreen ? 4 : 6),
-            Row(
-              children: [
-                Icon(
-                  Icons.timer_outlined,
-                  color: AppTheme.primary,
-                  size: isSmallScreen ? 18 : 20,
-                ),
-                SizedBox(width: isSmallScreen ? 6 : 8),
-                Text(
-                  '${exerciseData['duration']} hr',
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? 12 : 14,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

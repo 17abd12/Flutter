@@ -8,7 +8,9 @@ import 'login_screen.dart';
 import 'signup_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final Function(int)? onTabChange;
+  
+  const DashboardScreen({super.key, this.onTabChange});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -128,26 +130,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        children: const [
+        children: [
           // 1. Calories Card
-          CalorieCard(),
+          const CalorieCard(),
 
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
 
           // 2. Dashboard Grid (Weight Input & Exercise)
-          DashboardGrid(),
+          const DashboardGrid(),
 
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
 
           // 3. Weight Card
-          WeightCard(),
+          const WeightCard(),
 
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
 
           // 4. Discover Section
-          DiscoverSection(),
+          DiscoverSection(onTabChange: widget.onTabChange),
 
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
         ],
       ),
     );
