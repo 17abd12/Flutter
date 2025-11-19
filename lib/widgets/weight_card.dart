@@ -30,12 +30,11 @@ class _WeightCardState extends State<WeightCard> {
     if (widget.isLoggedIn) {
       _loadWeightData();
     } else {
-      setState(() {
-        _allWeightData = MockData.weightHistory;
-        _goalWeight = MockData.userProfile['goalWeight'] as double;
-        _currentWeight = MockData.userProfile['currentWeight'] as double;
-        _isLoading = false;
-      });
+      // Use mock data when not logged in
+      _allWeightData = MockData.weightHistory;
+      _goalWeight = (MockData.userProfile['goalWeight'] as num?)?.toDouble() ?? 70.0;
+      _currentWeight = (MockData.userProfile['currentWeight'] as num?)?.toDouble() ?? 75.0;
+      _isLoading = false;
     }
   }
 

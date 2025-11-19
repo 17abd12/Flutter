@@ -5,8 +5,6 @@ import '../widgets/dashboard_grid.dart';
 import '../widgets/weight_card.dart';
 import '../widgets/discover_section_new.dart';
 import '../services/auth_service.dart';
-import '../services/firestore_service.dart';
-import '../models/user_model.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 
@@ -28,8 +26,6 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final AuthService _authService = AuthService();
-  final FirestoreService _firestoreService = FirestoreService();
-  UserModel? _userData;
   bool _isLoading = true;
   int _refreshKey = 0; // Key to force widget refresh
 
@@ -47,9 +43,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final user = _authService.currentUser;
       if (user != null) {
-        final userData = await _firestoreService.getUserProfile(user.uid);
+        // Data loaded, just update loading state
         setState(() {
-          _userData = userData;
           _isLoading = false;
         });
       }

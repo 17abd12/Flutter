@@ -22,6 +22,25 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final AuthService _authService = AuthService();
   int _refreshKey = 0; // Key to trigger rebuilds across tabs
+  bool _currentLoginState = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentLoginState = widget.isLoggedIn;
+    // Listen to auth state changes
+    _authService.authStateChanges.listen((user) {
+      if (mounted) {
+        final isLoggedIn = user != null;
+        if (_currentLoginState != isLoggedIn) {
+          setState(() {
+            _currentLoginState = isLoggedIn;
+            _refreshKey++; // Force rebuild all screens with new login state
+          });
+        }
+      }
+    });
+  }
 
   void _refreshAllScreens() {
     setState(() {
@@ -33,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
     DashboardScreen(
       key: ValueKey('dashboard_$_refreshKey'),
       onTabChange: _onItemTapped,
-      isLoggedIn: widget.isLoggedIn,
+      isLoggedIn: _currentLoginState,
       onDataChanged: _refreshAllScreens,
     ),
     const RecipesScreen(),
@@ -44,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
     ProfileScreen(
       key: ValueKey('profile_$_refreshKey'),
-      isLoggedIn: widget.isLoggedIn,
+      isLoggedIn: _currentLoginState,
     ),
   ];
 
