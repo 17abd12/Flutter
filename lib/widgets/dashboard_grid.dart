@@ -1,16 +1,34 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../models/mock_data.dart';
+import '../screens/login_screen.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 
 class DashboardGrid extends StatefulWidget {
-  const DashboardGrid({super.key});
+  final bool isLoggedIn;
+  final VoidCallback? onDataChanged;
+  
+  const DashboardGrid({
+    super.key,
+    this.isLoggedIn = false,
+    this.onDataChanged,
+  });
 
   @override
   State<DashboardGrid> createState() => _DashboardGridState();
 }
 
 class _DashboardGridState extends State<DashboardGrid> {
+  final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
+
   void _showAddWeightDialog() {
+    if (!widget.isLoggedIn) {
+      _showLoginPrompt();
+      return;
+    }
+    
     final TextEditingController weightController = TextEditingController();
 
     showDialog(
@@ -32,15 +50,47 @@ class _DashboardGridState extends State<DashboardGrid> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // TODO: Save weight data
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Weight ${weightController.text} kg saved!'),
-                  backgroundColor: AppTheme.primary,
-                ),
-              );
-              Navigator.pop(context);
+            onPressed: () async {
+              final weightText = weightController.text.trim();
+              if (weightText.isEmpty) return;
+              
+              final weight = double.tryParse(weightText);
+              if (weight == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a valid weight'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              try {
+                final user = _authService.currentUser;
+                if (user != null) {
+                  await _firestoreService.logWeight(uid: user.uid, weight: weight);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Weight $weight kg saved!'),
+                        backgroundColor: AppTheme.primary,
+                      ),
+                    );
+                    Navigator.pop(context);
+                    // Trigger a refresh of the parent widget
+                    widget.onDataChanged?.call();
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error saving weight: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
             child: const Text('Save'),
@@ -51,9 +101,45 @@ class _DashboardGridState extends State<DashboardGrid> {
   }
 
   void _showAddExerciseDialog() {
+    if (!widget.isLoggedIn) {
+      _showLoginPrompt();
+      return;
+    }
+    
     showDialog(
       context: context,
-      builder: (context) => const AddExerciseDialog(),
+      builder: (context) => AddExerciseDialog(
+        onExerciseAdded: () {
+          widget.onDataChanged?.call(); // Call parent callback
+        },
+      ),
+    );
+  }
+
+  void _showLoginPrompt() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Required'),
+        content: const Text('Please login or sign up to add weight and exercise data.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+            child: const Text('Login'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -329,18 +415,23 @@ class _DashboardGridState extends State<DashboardGrid> {
 }
 
 class AddExerciseDialog extends StatefulWidget {
-  const AddExerciseDialog({super.key});
+  final VoidCallback? onExerciseAdded;
+  
+  const AddExerciseDialog({super.key, this.onExerciseAdded});
 
   @override
   State<AddExerciseDialog> createState() => _AddExerciseDialogState();
 }
 
 class _AddExerciseDialogState extends State<AddExerciseDialog> {
+  final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
   int _selectedOption = 0; // 0: Manual calories, 1: AI estimation
   final TextEditingController _exerciseNameController = TextEditingController();
   final TextEditingController _caloriesController = TextEditingController();
   final TextEditingController _durationController = TextEditingController();
   String _selectedIntensity = 'Medium';
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -477,7 +568,7 @@ class _AddExerciseDialogState extends State<AddExerciseDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: () {
+          onPressed: _isLoading ? null : () async {
             if (_exerciseNameController.text.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Please enter exercise name')),
@@ -499,26 +590,76 @@ class _AddExerciseDialogState extends State<AddExerciseDialog> {
               return;
             }
 
-            // TODO: Save exercise data and estimate calories using AI if needed
-            String message;
-            if (_selectedOption == 0) {
-              message =
-                  'Exercise "${_exerciseNameController.text}" with ${_caloriesController.text} cal added!';
-            } else {
-              message =
-                  'Exercise "${_exerciseNameController.text}" (${_durationController.text} min, $_selectedIntensity intensity) added! AI will estimate calories.';
-            }
+            setState(() => _isLoading = true);
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message),
-                backgroundColor: AppTheme.primary,
-              ),
-            );
-            Navigator.pop(context);
+            try {
+              final user = _authService.currentUser;
+              if (user == null) throw 'Not logged in';
+
+              int caloriesBurned;
+              int durationMinutes;
+
+              if (_selectedOption == 0) {
+                // Manual calories
+                caloriesBurned = int.parse(_caloriesController.text);
+                durationMinutes = 30; // Default duration
+              } else {
+                // AI estimation (mock for now - estimate based on duration and intensity)
+                durationMinutes = int.parse(_durationController.text);
+                double multiplier;
+                switch (_selectedIntensity) {
+                  case 'Low': multiplier = 3.0; break;
+                  case 'Medium': multiplier = 5.0; break;
+                  case 'High': multiplier = 7.0; break;
+                  case 'Very High': multiplier = 9.0; break;
+                  default: multiplier = 5.0;
+                }
+                caloriesBurned = (durationMinutes * multiplier).round();
+              }
+
+              await _firestoreService.logExercise(
+                uid: user.uid,
+                exerciseName: _exerciseNameController.text,
+                caloriesBurned: caloriesBurned,
+                durationMinutes: durationMinutes,
+              );
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Exercise "${_exerciseNameController.text}" added! ($caloriesBurned cal)'),
+                    backgroundColor: AppTheme.primary,
+                  ),
+                );
+                Navigator.pop(context);
+                widget.onExerciseAdded?.call();
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            } finally {
+              if (mounted) {
+                setState(() => _isLoading = false);
+              }
+            }
           },
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
-          child: const Text('Add'),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Add'),
         ),
       ],
     );

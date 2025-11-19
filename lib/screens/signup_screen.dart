@@ -12,9 +12,12 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
+  final nameController = TextEditingController();
+  final ageController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +76,30 @@ class _SignupScreenState extends State<SignupScreen> {
 
                               // 🌿 Themed text fields
                               CustomTextField(
+                                controller: nameController,
+                                label: "Full Name",
+                                icon: Icons.person,
+                                validator: (v) => v == null || v.isEmpty
+                                    ? "Name is required"
+                                    : null,
+                              ),
+                              const SizedBox(height: 20),
+                              CustomTextField(
+                                controller: ageController,
+                                label: "Age",
+                                icon: Icons.cake,
+                                keyboardType: TextInputType.number,
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) return "Age is required";
+                                  int? age = int.tryParse(v);
+                                  if (age == null || age < 13 || age > 120) {
+                                    return "Enter valid age (13-120)";
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              CustomTextField(
                                 controller: emailController,
                                 label: "Email",
                                 icon: Icons.email,
@@ -104,17 +131,23 @@ class _SignupScreenState extends State<SignupScreen> {
 
                               // 🌿 Themed sign-up button
                               ElevatedButton(
-                                onPressed: () {
-                                  if (_formKey.currentState!.validate()) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const GoalSetupScreen(),
-                                      ),
-                                    );
-                                  }
-                                },
+                                onPressed: _isLoading
+                                    ? null
+                                    : () {
+                                        if (_formKey.currentState!.validate()) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => GoalSetupScreen(
+                                                email: emailController.text.trim(),
+                                                password: passwordController.text,
+                                                name: nameController.text.trim(),
+                                                age: int.parse(ageController.text),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.primary,
                                   foregroundColor: AppTheme.textLight,
@@ -126,7 +159,16 @@ class _SignupScreenState extends State<SignupScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                child: const Text("Sign Up"),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text("Sign Up"),
                               ),
                             ],
                           ),

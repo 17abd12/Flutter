@@ -4,73 +4,87 @@ import '../widgets/calorie_card.dart';
 import '../widgets/dashboard_grid.dart';
 import '../widgets/weight_card.dart';
 import '../widgets/discover_section_new.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
+import '../models/user_model.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int)? onTabChange;
+  final bool isLoggedIn;
+  final VoidCallback? onDataChanged;
   
-  const DashboardScreen({super.key, this.onTabChange});
+  const DashboardScreen({
+    super.key,
+    this.onTabChange,
+    this.isLoggedIn = false,
+    this.onDataChanged,
+  });
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  bool _isLoggedIn = false;
+  final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
+  UserModel? _userData;
+  bool _isLoading = true;
+  int _refreshKey = 0; // Key to force widget refresh
 
-  void _handleLogin() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-    ).then((value) {
-      if (value == true) {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isLoggedIn) {
+      _loadUserData();
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = _authService.currentUser;
+      if (user != null) {
+        final userData = await _firestoreService.getUserProfile(user.uid);
         setState(() {
-          _isLoggedIn = true;
+          _userData = userData;
+          _isLoading = false;
         });
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Logged in successfully!'),
-            backgroundColor: AppTheme.primary,
+          SnackBar(
+            content: Text('Error loading data: ${e.toString()}'),
+            backgroundColor: Colors.red,
           ),
         );
       }
-    });
+    }
   }
 
-  void _handleSignup() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const SignupScreen()),
-    ).then((value) {
-      if (value == true) {
-        setState(() {
-          _isLoggedIn = true;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully!'),
-            backgroundColor: AppTheme.primary,
-          ),
-        );
-      }
-    });
-  }
-
-  void _handleLogout() {
+  void _refreshDashboard() {
     setState(() {
-      _isLoggedIn = false;
+      _refreshKey++; // Increment key to force rebuild of all children
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Logged out successfully'),
-        backgroundColor: AppTheme.primary,
-      ),
-    );
+    // Also notify parent (home screen) to refresh other tabs
+    widget.onDataChanged?.call();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppTheme.background,
+        body: const Center(
+          child: CircularProgressIndicator(color: AppTheme.primary),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
@@ -94,37 +108,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         actions: [
-          if (!_isLoggedIn) ...[
+          if (!widget.isLoggedIn) ...[
             IconButton(
-              icon: const Icon(Icons.login),
+              icon: const Icon(Icons.login, color: Colors.white),
               tooltip: 'Login',
-              onPressed: _handleLogin,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              },
             ),
             IconButton(
-              icon: const Icon(Icons.person_add),
+              icon: const Icon(Icons.person_add, color: Colors.white),
               tooltip: 'Sign Up',
-              onPressed: _handleSignup,
-            ),
-          ] else ...[
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Logout',
-              onPressed: _handleLogout,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SignupScreen()),
+                );
+              },
             ),
           ],
-          // TextButton(
-          //   onPressed: () {
-          //     // Edit action
-          //   },
-          //   child: const Text(
-          //     'Edit',
-          //     style: TextStyle(
-          //       fontSize: 16,
-          //       color: Colors.blue,
-          //       fontWeight: FontWeight.w500,
-          //     ),
-          //   ),
-          // ),
           const SizedBox(width: 8),
         ],
       ),
@@ -132,17 +137,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           // 1. Calories Card
-          const CalorieCard(),
+          CalorieCard(
+            key: ValueKey('calorie_$_refreshKey'),
+            isLoggedIn: widget.isLoggedIn,
+          ),
 
           const SizedBox(height: 8),
 
           // 2. Dashboard Grid (Weight Input & Exercise)
-          const DashboardGrid(),
+          DashboardGrid(
+            key: ValueKey('grid_$_refreshKey'),
+            isLoggedIn: widget.isLoggedIn,
+            onDataChanged: _refreshDashboard,
+          ),
 
           const SizedBox(height: 8),
 
           // 3. Weight Card
-          const WeightCard(),
+          WeightCard(
+            key: ValueKey('weight_$_refreshKey'),
+            isLoggedIn: widget.isLoggedIn,
+          ),
 
           const SizedBox(height: 8),
 

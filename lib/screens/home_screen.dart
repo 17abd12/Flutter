@@ -6,9 +6,13 @@ import 'smart_recipe_generator_screen.dart';
 import 'real_time_meal_adjustment_screen.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
+import 'profile_screen.dart';
+import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool isLoggedIn;
+  
+  const HomeScreen({super.key, this.isLoggedIn = false});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -16,12 +20,32 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  final AuthService _authService = AuthService();
+  int _refreshKey = 0; // Key to trigger rebuilds across tabs
+
+  void _refreshAllScreens() {
+    setState(() {
+      _refreshKey++;
+    });
+  }
 
   List<Widget> get _screens => [
-    DashboardScreen(onTabChange: _onItemTapped),
+    DashboardScreen(
+      key: ValueKey('dashboard_$_refreshKey'),
+      onTabChange: _onItemTapped,
+      isLoggedIn: widget.isLoggedIn,
+      onDataChanged: _refreshAllScreens,
+    ),
     const RecipesScreen(),
     const SmartRecipeGeneratorScreen(),
-    const RealTimeMealAdjustmentScreen(),
+    RealTimeMealAdjustmentScreen(
+      key: ValueKey('meals_$_refreshKey'),
+      onDataChanged: _refreshAllScreens,
+    ),
+    ProfileScreen(
+      key: ValueKey('profile_$_refreshKey'),
+      isLoggedIn: widget.isLoggedIn,
+    ),
   ];
 
   void _onItemTapped(int index) {
@@ -71,6 +95,10 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icon(Icons.timeline),
               label: 'Tracking',
             ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person),
+              label: 'Profile',
+            ),
           ],
         ),
       ),
@@ -79,113 +107,155 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDrawer(BuildContext context) {
+    List<Widget> drawerItems = [
+      DrawerHeader(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.organicGradient,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: const Icon(
+                Icons.person,
+                size: 40,
+                color: AppTheme.primary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Sarah Johnson',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              'sarah.j@email.com',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+      ListTile(
+        leading: const Icon(Icons.person, color: AppTheme.primary),
+        title: const Text('Profile'),
+        onTap: () {
+          Navigator.pop(context);
+          setState(() {
+            _selectedIndex = 4; // Navigate to profile tab
+          });
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.settings, color: AppTheme.primary),
+        title: const Text('Settings'),
+        onTap: () {
+          Navigator.pop(context);
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.notifications, color: AppTheme.primary),
+        title: const Text('Notifications'),
+        onTap: () {
+          Navigator.pop(context);
+        },
+      ),
+      const Divider(),
+    ];
+
+    // Add login/signup or logout based on auth state
+    if (!widget.isLoggedIn) {
+      drawerItems.addAll([
+        ListTile(
+          leading: const Icon(Icons.login, color: AppTheme.primary),
+          title: const Text('Login'),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.person_add, color: AppTheme.primary),
+          title: const Text('Sign Up'),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SignupScreen()),
+            );
+          },
+        ),
+      ]);
+    } else {
+      drawerItems.add(
+        ListTile(
+          leading: const Icon(Icons.logout, color: Colors.red),
+          title: const Text('Logout', style: TextStyle(color: Colors.red)),
+          onTap: () async {
+            try {
+              await _authService.signOut();
+              if (!mounted) return;
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Logged out successfully'),
+                  backgroundColor: AppTheme.primary,
+                ),
+              );
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+        ),
+      );
+    }
+
+    drawerItems.addAll([
+      const Divider(),
+      ListTile(
+        leading: const Icon(Icons.help_outline, color: AppTheme.primary),
+        title: const Text('Help & Support'),
+        onTap: () {
+          Navigator.pop(context);
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.info_outline, color: AppTheme.primary),
+        title: const Text('About'),
+        onTap: () {
+          Navigator.pop(context);
+          _showAboutDialog(context);
+        },
+      ),
+    ]);
+
     return Drawer(
       child: Container(
         color: AppTheme.background,
         child: ListView(
           padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(
-                gradient: AppTheme.organicGradient,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      size: 40,
-                      color: AppTheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Sarah Johnson',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'sarah.j@email.com',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person, color: AppTheme.primary),
-              title: const Text('Profile'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings, color: AppTheme.primary),
-              title: const Text('Settings'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.notifications, color: AppTheme.primary),
-              title: const Text('Notifications'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.login, color: AppTheme.primary),
-              title: const Text('Login'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_add, color: AppTheme.primary),
-              title: const Text('Sign Up'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SignupScreen()),
-                );
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.help_outline, color: AppTheme.primary),
-              title: const Text('Help & Support'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline, color: AppTheme.primary),
-              title: const Text('About'),
-              onTap: () {
-                Navigator.pop(context);
-                _showAboutDialog(context);
-              },
-            ),
-          ],
+          children: drawerItems,
         ),
       ),
     );
@@ -199,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
         content: const Text(
           'AI Meal Planner v1.0\n\n'
           'A modern nutrition tracking and meal planning app powered by AI.\n\n'
-          'This is a frontend demo showcasing the app\'s features.',
+          'This app helps you track your meals, exercise, and achieve your fitness goals.',
         ),
         actions: [
           TextButton(

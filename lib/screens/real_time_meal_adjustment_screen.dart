@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 
 class RealTimeMealAdjustmentScreen extends StatefulWidget {
-  const RealTimeMealAdjustmentScreen({super.key});
+  final VoidCallback? onDataChanged;
+  
+  const RealTimeMealAdjustmentScreen({super.key, this.onDataChanged});
 
   @override
   State<RealTimeMealAdjustmentScreen> createState() =>
@@ -11,29 +15,70 @@ class RealTimeMealAdjustmentScreen extends StatefulWidget {
 
 class _RealTimeMealAdjustmentScreenState
     extends State<RealTimeMealAdjustmentScreen> {
+  final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _mealNameController = TextEditingController();
   final TextEditingController _caloriesController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
   int _selectedOption = 0; // 0: Enter calories, 1: AI estimate from description
+  bool _isLoggedIn = false;
+  bool _isLoading = true;
+  bool _isAddingMeal = false; // Loading state for adding meal
+  String? _deletingMealId; // Track which meal is being deleted
+  int dailyGoal = 2000;
+  int consumedCalories = 0;
+  int caloriesBurned = 0;
+  List<Map<String, dynamic>> todaysMeals = [];
 
-  int dailyGoal = 1500;
-  int consumedCalories = 650;
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthAndLoadData();
+  }
 
-  List<Map<String, dynamic>> todaysMeals = [
-    {
-      'name': 'Greek Yogurt Bowl',
-      'time': '8:30 AM',
-      'calories': 320,
-      'type': 'Breakfast',
-    },
-    {
-      'name': 'Chicken Salad',
-      'time': '1:00 PM',
-      'calories': 330,
-      'type': 'Lunch',
-    },
-  ];
+  Future<void> _checkAuthAndLoadData() async {
+    final user = _authService.currentUser;
+    setState(() {
+      _isLoggedIn = user != null;
+    });
+
+    if (_isLoggedIn) {
+      await _loadRealData();
+    } else {
+      setState(() {
+        _isLoading = false;
+        // Use default mock data when not logged in
+        dailyGoal = 2000;
+        consumedCalories = 0;
+        todaysMeals = [];
+      });
+    }
+  }
+
+  Future<void> _loadRealData() async {
+    try {
+      final user = _authService.currentUser;
+      if (user != null) {
+        final summary = await _firestoreService.getDashboardSummary(user.uid);
+        if (mounted) {
+          setState(() {
+            dailyGoal = summary['calorieGoal'] ?? 2000;
+            consumedCalories = summary['caloriesConsumed'] ?? 0;
+            caloriesBurned = summary['caloriesBurned'] ?? 0;
+            todaysMeals = (summary['todayMeals'] as List? ?? []).cast<Map<String, dynamic>>();
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -43,7 +88,19 @@ class _RealTimeMealAdjustmentScreenState
     super.dispose();
   }
 
-  void _addMeal() {
+  Future<void> _addMeal() async {
+    if (_isAddingMeal) return; // Prevent double submission
+    
+    if (!_isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to add meals'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     if (_mealNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -91,8 +148,7 @@ class _RealTimeMealAdjustmentScreenState
         return;
       }
 
-      // TODO: Call AI API to estimate calories from description
-      // For now, using mock estimation based on description length
+      // Mock AI estimation - Replace with actual AI API call
       calories = _estimateCaloriesFromDescription(_descriptionController.text);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -106,25 +162,50 @@ class _RealTimeMealAdjustmentScreenState
       );
     }
 
-    setState(() {
-      todaysMeals.add({
-        'name': _mealNameController.text,
-        'time': TimeOfDay.now().format(context),
-        'calories': calories,
-        'type': 'Custom',
-      });
-      consumedCalories += calories;
-      _mealNameController.clear();
-      _caloriesController.clear();
-      _descriptionController.clear();
-    });
+    // Set loading state
+    setState(() => _isAddingMeal = true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Meal added successfully!'),
-        backgroundColor: AppTheme.primary,
-      ),
-    );
+    // Save to Firestore
+    try {
+      final user = _authService.currentUser;
+      if (user != null) {
+        await _firestoreService.logMeal(
+          uid: user.uid,
+          mealName: _mealNameController.text,
+          calories: calories,
+          mealType: 'Custom',
+        );
+
+        // Reload data from Firestore
+        await _loadRealData();
+
+        _mealNameController.clear();
+        _caloriesController.clear();
+        _descriptionController.clear();
+
+        if (mounted) {
+          setState(() => _isAddingMeal = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Meal added successfully!'),
+              backgroundColor: AppTheme.primary,
+            ),
+          );
+          // Notify parent to refresh other screens
+          widget.onDataChanged?.call();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isAddingMeal = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding meal: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // Mock AI estimation - Replace with actual AI API call
@@ -165,17 +246,75 @@ class _RealTimeMealAdjustmentScreenState
     return baseCalories;
   }
 
-  void _removeMeal(int index) {
-    setState(() {
-      consumedCalories -= todaysMeals[index]['calories'] as int;
-      todaysMeals.removeAt(index);
-    });
+  Future<void> _removeMeal(int index) async {
+    if (!_isLoggedIn) return;
+
+    final meal = todaysMeals[index];
+    final mealId = meal['id'];
+    
+    if (mealId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot delete this meal'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Prevent double deletion
+    if (_deletingMealId == mealId) return;
+
+    setState(() => _deletingMealId = mealId);
+
+    try {
+      await _firestoreService.deleteMeal(mealId);
+      await _loadRealData(); // Reload data
+      
+      if (mounted) {
+        setState(() => _deletingMealId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Meal deleted'),
+            backgroundColor: AppTheme.primary,
+          ),
+        );
+        // Notify parent to refresh other screens
+        widget.onDataChanged?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _deletingMealId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting meal: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final remainingCalories = dailyGoal - consumedCalories;
+    final remainingCalories = dailyGoal - consumedCalories + caloriesBurned;
     final progress = consumedCalories / dailyGoal;
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(gradient: AppTheme.boldGradient),
+          ),
+          elevation: 4,
+          title: const Text('Real-Time Adjustments'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppTheme.primary),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -662,6 +801,23 @@ class _RealTimeMealAdjustmentScreenState
   }
 
   Widget _buildMealCard(Map<String, dynamic> meal, int index) {
+    // Format timestamp from Firestore
+    String timeStr = 'Today';
+    if (meal['timestamp'] != null) {
+      try {
+        final DateTime timestamp = DateTime.parse(meal['timestamp']);
+        final hour = timestamp.hour;
+        final minute = timestamp.minute.toString().padLeft(2, '0');
+        final period = hour >= 12 ? 'PM' : 'AM';
+        final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+        timeStr = '$displayHour:$minute $period';
+      } catch (e) {
+        timeStr = meal['time'] ?? 'Today';
+      }
+    } else if (meal['time'] != null) {
+      timeStr = meal['time'];
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -695,7 +851,7 @@ class _RealTimeMealAdjustmentScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  meal['name'],
+                  meal['mealName'] ?? meal['name'] ?? 'Unknown Meal',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -712,7 +868,7 @@ class _RealTimeMealAdjustmentScreenState
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      meal['time'],
+                      timeStr,
                       style: TextStyle(
                         fontSize: 13,
                         color: AppTheme.textDark.withValues(alpha: 0.6),
@@ -729,7 +885,7 @@ class _RealTimeMealAdjustmentScreenState
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        meal['type'],
+                        meal['mealType'] ?? meal['type'] ?? 'Custom',
                         style: const TextStyle(
                           fontSize: 11,
                           color: Colors.blue,
@@ -763,11 +919,23 @@ class _RealTimeMealAdjustmentScreenState
           ),
 
           // Delete button
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            color: Colors.red.withValues(alpha: 0.6),
-            onPressed: () => _removeMeal(index),
-          ),
+          _deletingMealId == meal['id']
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                    ),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  color: Colors.red.withValues(alpha: 0.6),
+                  onPressed: () => _removeMeal(index),
+                ),
         ],
       ),
     );

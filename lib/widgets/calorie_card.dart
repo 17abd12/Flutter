@@ -1,18 +1,90 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../models/mock_data.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 
-class CalorieCard extends StatelessWidget {
-  const CalorieCard({super.key});
+class CalorieCard extends StatefulWidget {
+  final bool isLoggedIn;
+  
+  const CalorieCard({super.key, this.isLoggedIn = false});
+
+  @override
+  State<CalorieCard> createState() => _CalorieCardState();
+}
+
+class _CalorieCardState extends State<CalorieCard> {
+  final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
+  
+  int _baseGoal = 2000;
+  int _foodConsumed = 0;
+  int _exerciseBurned = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isLoggedIn) {
+      _loadRealData();
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadRealData() async {
+    try {
+      final user = _authService.currentUser;
+      if (user != null) {
+        final summary = await _firestoreService.getDashboardSummary(user.uid);
+        if (mounted) {
+          setState(() {
+            _baseGoal = summary['calorieGoal'] ?? 2000;
+            _foodConsumed = summary['caloriesConsumed'] ?? 0;
+            _exerciseBurned = summary['caloriesBurned'] ?? 0;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final data = MockData.calorieData;
+    // Use mock data if not logged in, real data if logged in
+    final data = widget.isLoggedIn && !_isLoading
+        ? {
+            'baseGoal': _baseGoal,
+            'foodConsumed': _foodConsumed,
+            'exerciseBurned': _exerciseBurned,
+            'remaining': _baseGoal - _foodConsumed + _exerciseBurned,
+          }
+        : MockData.calorieData;
+    
     final remaining = data['remaining'] as int;
     final goal = data['baseGoal'] as int;
     final progress = remaining / goal;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
+
+    if (widget.isLoggedIn && _isLoading) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: AppTheme.primary),
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

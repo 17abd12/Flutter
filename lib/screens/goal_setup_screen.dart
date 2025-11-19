@@ -1,8 +1,24 @@
 import 'package:flutter/material.dart';
 import '../theme.dart'; // 🌿 for colors and gradient
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
+import '../models/user_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'home_screen.dart';
 
 class GoalSetupScreen extends StatefulWidget {
-  const GoalSetupScreen({super.key});
+  final String email;
+  final String password;
+  final String name;
+  final int age;
+
+  const GoalSetupScreen({
+    super.key,
+    required this.email,
+    required this.password,
+    required this.name,
+    required this.age,
+  });
 
   @override
   State<GoalSetupScreen> createState() => _GoalSetupScreenState();
@@ -12,12 +28,19 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
   final weightController = TextEditingController();
   final heightController = TextEditingController();
   final targetWeightController = TextEditingController();
+  final calorieIntakeGoalController = TextEditingController(text: '2000');
+  final calorieBurnGoalController = TextEditingController(text: '300');
   final motivationController = TextEditingController();
+  final mealPreferenceController = TextEditingController();
 
   String goal = "Lose Weight";
   String activityLevel = "Moderate";
   String gender = "Male";
   String duration = "3 Months";
+  bool _isLoading = false;
+
+  final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   Widget build(BuildContext context) {
@@ -198,20 +221,49 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
                       ),
                       maxLines: 2,
                     ),
+                    const SizedBox(height: 20),
+
+                    // 🌿 Meal Preference
+                    TextField(
+                      controller: mealPreferenceController,
+                      decoration: const InputDecoration(
+                        labelText: "Meal Preference (Optional)",
+                        prefixIcon: Icon(Icons.restaurant_menu),
+                        border: OutlineInputBorder(),
+                        helperText: "e.g., Vegetarian, Vegan, Keto, Halal, etc.",
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 🌿 Calorie Intake Goal
+                    TextField(
+                      controller: calorieIntakeGoalController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: "Daily Calorie Intake Goal (kcal)",
+                        prefixIcon: Icon(Icons.restaurant),
+                        border: OutlineInputBorder(),
+                        helperText: "Recommended: 1500-2500 kcal",
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 🌿 Calorie Burn Goal
+                    TextField(
+                      controller: calorieBurnGoalController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: "Daily Calorie Burn Goal (kcal)",
+                        prefixIcon: Icon(Icons.local_fire_department),
+                        border: OutlineInputBorder(),
+                        helperText: "Recommended: 200-500 kcal",
+                      ),
+                    ),
                     const SizedBox(height: 30),
 
                     // 🌿 Continue button
                     ElevatedButton(
-                      onPressed: () {
-                        // You could save this data to a database or send to next screen
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              "🎯 Goal saved: $goal for $duration\nCurrent: ${weightController.text}kg → Target: ${targetWeightController.text}kg",
-                            ),
-                          ),
-                        );
-                      },
+                      onPressed: _isLoading ? null : _handleSignup,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: AppTheme.textLight,
@@ -223,7 +275,16 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text("Save & Continue"),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text("Save & Continue"),
                     ),
                   ],
                 ),
@@ -233,5 +294,93 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
         ),
       ),
     );
+  }
+
+  // Handle signup and save user data to Firestore
+  Future<void> _handleSignup() async {
+    // Validate all fields
+    if (weightController.text.isEmpty ||
+        heightController.text.isEmpty ||
+        targetWeightController.text.isEmpty ||
+        calorieIntakeGoalController.text.isEmpty ||
+        calorieBurnGoalController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all required fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Create Firebase Auth account
+      User? user = await _authService.signUpWithEmailPassword(
+        widget.email,
+        widget.password,
+      );
+
+      if (user == null) {
+        throw 'Failed to create account';
+      }
+
+      // Create user profile
+      UserModel userModel = UserModel(
+        uid: user.uid,
+        email: widget.email,
+        name: widget.name,
+        age: widget.age,
+        currentWeight: double.parse(weightController.text),
+        targetWeight: double.parse(targetWeightController.text),
+        height: double.parse(heightController.text),
+        gender: gender,
+        goal: goal,
+        activityLevel: activityLevel,
+        duration: duration,
+        calorieIntakeGoal: int.parse(calorieIntakeGoalController.text),
+        calorieBurnGoal: int.parse(calorieBurnGoalController.text),
+        motivation: motivationController.text,
+        mealPreference: mealPreferenceController.text.isEmpty 
+            ? null 
+            : mealPreferenceController.text,
+        createdAt: DateTime.now(),
+      );
+
+      // Save to Firestore
+      await _firestoreService.saveUserProfile(userModel);
+
+      if (!mounted) return;
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile saved successfully! 🎉'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Navigate to home screen
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const HomeScreen(isLoggedIn: true)),
+        (route) => false,
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      
+      if (!mounted) return;
+      
+      print('Error during signup: $e'); // Debug log
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 }

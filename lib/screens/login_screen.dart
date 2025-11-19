@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'signup_screen.dart';
-import 'home_screen.dart';
 import '../widgets/custom_textfield.dart';
 import '../theme.dart'; // 🌿 Import the organic theme
+import '../services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +16,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -99,16 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                               // 🌿 Themed button
                               ElevatedButton(
-                                onPressed: () {
-                                  if (_formKey.currentState!.validate()) {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const HomeScreen(),
-                                      ),
-                                    );
-                                  }
-                                },
+                                onPressed: _isLoading ? null : _handleLogin,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.primary,
                                   foregroundColor: AppTheme.textLight,
@@ -120,7 +114,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                child: const Text("Login"),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text("Login"),
                               ),
                               const SizedBox(height: 15),
 
@@ -156,5 +159,48 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  // Handle login with Firebase
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      User? user = await _authService.signInWithEmailPassword(
+        emailController.text.trim(),
+        passwordController.text,
+      );
+
+      if (user == null) {
+        throw 'Failed to sign in';
+      }
+
+      if (!mounted) return;
+
+      // Navigate back - AuthWrapper will handle showing HomeScreen with user data
+      Navigator.of(context).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Welcome back! 🎉'),
+          backgroundColor: AppTheme.primary,
+        ),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
