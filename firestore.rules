@@ -19,6 +19,8 @@ service cloud.firestore {
     }
     
     // Meals collection - users can only access their own meals
+    // ⚡ REQUIRED INDEX: uid (Ascending) + timestamp (Descending)
+    // Used by: getMealsForDate(), getTodayCaloriesConsumed(), getDashboardSummary()
     match /meals/{mealId} {
       allow read: if isAuthenticated() && 
                      (resource == null || resource.data.uid == request.auth.uid);
@@ -29,6 +31,8 @@ service cloud.firestore {
     }
     
     // Exercises collection - users can only access their own exercises
+    // ⚡ REQUIRED INDEX: uid (Ascending) + timestamp (Descending)
+    // Used by: getTodayExercises(), getTodayCaloriesBurned(), getDashboardSummary()
     match /exercises/{exerciseId} {
       allow read: if isAuthenticated() && 
                      (resource == null || resource.data.uid == request.auth.uid);
@@ -39,6 +43,8 @@ service cloud.firestore {
     }
     
     // Weight history collection - users can only access their own weight history
+    // ⚡ REQUIRED INDEX: uid (Ascending) + timestamp (Descending)
+    // Used by: getWeightHistory(), getAllWeightHistory(), getDashboardSummary()
     match /weight_history/{entryId} {
       allow read: if isAuthenticated() && 
                      (resource == null || resource.data.uid == request.auth.uid);

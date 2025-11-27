@@ -499,6 +499,12 @@ class _RealTimeMealAdjustmentScreenState
                     ),
                     Container(width: 1, height: 40, color: Colors.grey[300]),
                     _buildStatColumn(
+                      'Burnt',
+                      caloriesBurned.toString(),
+                      const Color(0xFF4CAF50),
+                    ),
+                    Container(width: 1, height: 40, color: Colors.grey[300]),
+                    _buildStatColumn(
                       'Remaining',
                       remainingCalories.toString(),
                       remainingCalories >= 0 ? AppTheme.secondary : Colors.red,
@@ -663,12 +669,23 @@ class _RealTimeMealAdjustmentScreenState
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: _addMeal,
-                    icon: const Icon(Icons.add),
+                    onPressed: _isAddingMeal ? null : _addMeal,
+                    icon: _isAddingMeal
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.add),
                     label: Text(
-                      _selectedOption == 0
-                          ? 'Add Meal'
-                          : 'Let AI Estimate & Add',
+                      _isAddingMeal
+                          ? 'Adding...'
+                          : (_selectedOption == 0
+                              ? 'Add Meal'
+                              : 'Let AI Estimate & Add'),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
@@ -677,6 +694,7 @@ class _RealTimeMealAdjustmentScreenState
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      disabledBackgroundColor: AppTheme.primary.withOpacity(0.6),
                     ),
                   ),
                 ),
