@@ -165,34 +165,79 @@ class _RealTimeMealAdjustmentScreenState
     // Set loading state
     setState(() => _isAddingMeal = true);
 
-    // Save to Firestore
     try {
       final user = _authService.currentUser;
       if (user != null) {
-        await _firestoreService.logMeal(
-          uid: user.uid,
-          mealName: _mealNameController.text,
-          calories: calories,
-          mealType: 'Custom',
-        );
+        // 🚀 OPTIMIZATION: Add meal to local list IMMEDIATELY (no reload needed)
+        final now = DateTime.now();
+        final newMeal = {
+          'id': 'temp_${now.millisecondsSinceEpoch}', // Temp ID
+          'mealName': _mealNameController.text,
+          'calories': calories,
+          'timestamp': now.toIso8601String(),
+          'mealType': 'Custom',
+          'isSyncing': true, // Mark as syncing with Firestore
+        };
 
-        // Reload data from Firestore
-        await _loadRealData();
+        // Add to top of list for instant feedback
+        setState(() {
+          todaysMeals.insert(0, newMeal);
+          consumedCalories += calories;
+        });
 
+        // Clear input fields immediately
         _mealNameController.clear();
         _caloriesController.clear();
         _descriptionController.clear();
 
+        // Show success message
         if (mounted) {
-          setState(() => _isAddingMeal = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Meal added successfully!'),
-              backgroundColor: AppTheme.primary,
+            SnackBar(
+              content: const Text('Meal added! Syncing with Firestore...'),
+              backgroundColor: AppTheme.secondary,
+              duration: const Duration(seconds: 2),
             ),
           );
-          // Notify parent to refresh other screens
-          widget.onDataChanged?.call();
+        }
+
+        // Save to Firestore in BACKGROUND (non-blocking)
+        _firestoreService.logMeal(
+          uid: user.uid,
+          mealName: newMeal['mealName'] as String,
+          calories: calories,
+          mealType: 'Custom',
+        ).then((_) {
+          // Success: Update temp meal with real Firestore ID
+          if (mounted) {
+            setState(() {
+              final index = todaysMeals.indexWhere((m) => m['id'] == newMeal['id']);
+              if (index != -1) {
+                todaysMeals[index]['isSyncing'] = false;
+              }
+            });
+            widget.onDataChanged?.call();
+          }
+        }).catchError((e) {
+          // Error: Remove from local list and show error
+          if (mounted) {
+            setState(() {
+              todaysMeals.removeWhere((m) => m['id'] == newMeal['id']);
+              consumedCalories -= calories;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to save meal: $e'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        });
+
+        // Set loading state to false (no need to wait for Firestore)
+        if (mounted) {
+          setState(() => _isAddingMeal = false);
         }
       }
     } catch (e) {
@@ -911,6 +956,18 @@ class _RealTimeMealAdjustmentScreenState
                         ),
                       ),
                     ),
+                    // Show syncing indicator if meal is being synced
+                    if (meal['isSyncing'] == true) ...[
+                      const SizedBox(width: 8),
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
