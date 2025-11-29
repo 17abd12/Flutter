@@ -4,6 +4,7 @@ import 'dashboard_screen.dart';
 import 'recipes_screen.dart';
 import 'smart_recipe_generator_screen.dart';
 import 'real_time_meal_adjustment_screen.dart';
+import 'logs_screen.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 import 'profile_screen.dart';
@@ -61,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
       key: ValueKey('meals_$_refreshKey'),
       onDataChanged: _refreshAllScreens,
     ),
+    const LogsScreen(),
     ProfileScreen(
       key: ValueKey('profile_$_refreshKey'),
       isLoggedIn: _currentLoginState,
@@ -113,6 +115,10 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.timeline),
               label: 'Tracking',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.history),
+              label: 'Logs',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person),
