@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_textfield.dart';
 import '../theme.dart'; // 🌿 Import the organic theme
-import 'goal_setup_screen.dart';
+import 'email_verification_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -138,11 +138,12 @@ class _SignupScreenState extends State<SignupScreen> {
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
-                                              builder: (context) => GoalSetupScreen(
+                                              builder: (context) => EmailVerificationScreen(
                                                 email: emailController.text.trim(),
                                                 password: passwordController.text,
                                                 name: nameController.text.trim(),
                                                 age: int.parse(ageController.text),
+                                                isNewUser: true, // Signup flow - go to goal setup after verification
                                               ),
                                             ),
                                           );

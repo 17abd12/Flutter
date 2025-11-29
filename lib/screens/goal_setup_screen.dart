@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme.dart'; // 🌿 for colors and gradient
-import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../models/user_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -38,9 +37,6 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
   String gender = "Male";
   String duration = "3 Months";
   bool _isLoading = false;
-
-  final AuthService _authService = AuthService();
-  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   Widget build(BuildContext context) {
@@ -316,17 +312,14 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Create Firebase Auth account
-      User? user = await _authService.signUpWithEmailPassword(
-        widget.email,
-        widget.password,
-      );
-
+      // Get current user (already authenticated from email verification)
+      User? user = FirebaseAuth.instance.currentUser;
+      
       if (user == null) {
-        throw 'Failed to create account';
+        throw 'User not authenticated. Please verify your email first.';
       }
 
-      // Create user profile
+      // Create user profile with goal information
       UserModel userModel = UserModel(
         uid: user.uid,
         email: widget.email,
@@ -349,7 +342,7 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
       );
 
       // Save to Firestore
-      await _firestoreService.saveUserProfile(userModel);
+      await FirestoreService().saveUserProfile(userModel);
 
       if (!mounted) return;
 
@@ -372,7 +365,7 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
       
       if (!mounted) return;
       
-      print('Error during signup: $e'); // Debug log
+      print('Error saving profile: $e'); // Debug log
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

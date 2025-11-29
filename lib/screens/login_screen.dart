@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'signup_screen.dart';
+import 'forgot_password_screen.dart';
+import 'email_verification_screen.dart';
 import '../widgets/custom_textfield.dart';
 import '../theme.dart'; // 🌿 Import the organic theme
 import '../services/auth_service.dart';
@@ -98,7 +100,31 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ? "Too short"
                                     : null,
                               ),
-                              const SizedBox(height: 30),
+                              const SizedBox(height: 10),
+                              
+                              // Forgot Password link
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const ForgotPasswordScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    "Forgot Password?",
+                                    style: TextStyle(
+                                      color: AppTheme.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
 
                               // 🌿 Themed button
                               ElevatedButton(
@@ -181,7 +207,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // Navigate back - AuthWrapper will handle showing HomeScreen with user data
+      // Reload user to get latest verification status from Firebase
+      await _authService.reloadUser();
+      
+      // Check if email is verified in Firebase (not Firestore)
+      bool isEmailVerified = _authService.isEmailVerified;
+      
+      if (!isEmailVerified) {
+        // Email not verified - show email verification screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(
+              email: emailController.text.trim(),
+              password: passwordController.text,
+              name: user.displayName ?? '',
+              age: 0, // Existing user, age already set in profile
+              isNewUser: false, // This is a returning user
+            ),
+          ),
+        );
+        return;
+      }
+
+      // Email is verified - proceed to home
       Navigator.of(context).pop();
 
       ScaffoldMessenger.of(context).showSnackBar(

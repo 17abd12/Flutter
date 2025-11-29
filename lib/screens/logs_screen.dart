@@ -95,11 +95,14 @@ class _LogsScreenState extends State<LogsScreen> {
           }
         });
 
-        setState(() {
-          _meals = meals;
-          _exercises = exercisesWithType;
-          _combinedLogs = allLogs;
-        });
+        if (mounted) {
+          setState(() {
+            _meals = meals;
+            _exercises = exercisesWithType;
+            _combinedLogs = allLogs;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -109,9 +112,8 @@ class _LogsScreenState extends State<LogsScreen> {
             backgroundColor: Colors.red,
           ),
         );
+        setState(() => _isLoading = false);
       }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
