@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/api_service.dart';
+import '../models/user_model.dart';
 
 class RealTimeMealAdjustmentScreen extends StatefulWidget {
   final VoidCallback? onDataChanged;
@@ -17,6 +19,7 @@ class _RealTimeMealAdjustmentScreenState
     extends State<RealTimeMealAdjustmentScreen> {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
+  final ApiService _apiService = ApiService();
   final TextEditingController _mealNameController = TextEditingController();
   final TextEditingController _caloriesController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -25,11 +28,13 @@ class _RealTimeMealAdjustmentScreenState
   bool _isLoggedIn = false;
   bool _isLoading = true;
   bool _isAddingMeal = false; // Loading state for adding meal
+  bool _isLoadingSuggestions = false;
   String? _deletingMealId; // Track which meal is being deleted
   int dailyGoal = 2000;
   int consumedCalories = 0;
   int caloriesBurned = 0;
   List<Map<String, dynamic>> todaysMeals = [];
+  List<Map<String, dynamic>> _mealSuggestions = [];
 
   @override
   void initState() {
@@ -69,12 +74,63 @@ class _RealTimeMealAdjustmentScreenState
             todaysMeals = (summary['todayMeals'] as List? ?? []).cast<Map<String, dynamic>>();
             _isLoading = false;
           });
+          
+          // Load AI suggestions after data is loaded
+          await _loadMealSuggestions();
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMealSuggestions() async {
+    final user = _authService.currentUser;
+    if (user == null) return;
+
+    final remainingCalories = dailyGoal - consumedCalories + caloriesBurned;
+    if (remainingCalories <= 200) return; // Don't show suggestions if low calories
+
+    setState(() {
+      _isLoadingSuggestions = true;
+    });
+
+    try {
+      // Get user profile for preferences
+      final userProfile = await _firestoreService.getUserProfile(user.uid);
+      
+      // Get recent meal names
+      final recentMealNames = todaysMeals
+          .map((meal) => meal['mealName'] as String? ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList();
+
+      final response = await _apiService.getMealSuggestions(
+        userId: user.uid,
+        remainingCalories: remainingCalories,
+        mealPreference: userProfile?.mealPreference ?? 'balanced',
+        goal: userProfile?.goal ?? 'maintain',
+        recentMeals: recentMealNames,
+      );
+
+      if (mounted) {
+        setState(() {
+          _mealSuggestions = (response['suggestions'] as List)
+              .map((s) => s as Map<String, dynamic>)
+              .toList();
+          _isLoadingSuggestions = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading meal suggestions: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingSuggestions = false;
+          // Keep empty suggestions on error
         });
       }
     }
@@ -137,7 +193,7 @@ class _RealTimeMealAdjustmentScreenState
       }
       calories = parsedCalories;
     } else {
-      // AI estimation from description
+      // AI estimation from description via backend API
       if (_descriptionController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -148,18 +204,97 @@ class _RealTimeMealAdjustmentScreenState
         return;
       }
 
-      // Mock AI estimation - Replace with actual AI API call
-      calories = _estimateCaloriesFromDescription(_descriptionController.text);
+      try {
+        final user = _authService.currentUser;
+        if (user == null) {
+          throw Exception('User not logged in');
+        }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'AI estimated $calories calories from your description',
-          ),
-          backgroundColor: AppTheme.primary,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        // Show loading indicator
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  ),
+                  SizedBox(width: 12),
+                  Text('AI analyzing your meal description...'),
+                ],
+              ),
+              backgroundColor: AppTheme.primary,
+              duration: Duration(seconds: 30),
+            ),
+          );
+        }
+
+        // Fetch user profile for API request
+        final userProfile = await _firestoreService.getUserProfile(user.uid);
+        if (userProfile == null) {
+          throw Exception('User profile not found');
+        }
+
+        // Calculate calories burned today
+        final exercisesToday = await _firestoreService.getTodayExercises(user.uid);
+        final caloriesBurntToday = exercisesToday.fold<int>(
+          0, 
+          (sum, ex) => sum + (ex['caloriesBurned'] as int? ?? 0)
+        );
+
+        // Call backend API for meal analysis
+        final ApiService apiService = ApiService();
+        final response = await apiService.analyzeMealDescription(
+          userId: user.uid,
+          mealDescription: _descriptionController.text,
+          mealTime: 'lunch', // Default or detect from time of day
+          calorieGoal: userProfile.calorieIntakeGoal,
+          caloriesIntakeToday: consumedCalories,
+          caloriesBurntToday: caloriesBurntToday,
+          currentWeight: userProfile.currentWeight,
+          targetWeight: userProfile.targetWeight,
+          goal: userProfile.goal,
+        );
+
+        // Extract total calories from response (backend returns meal_analysis not analysis)
+        final analysisData = response['meal_analysis'];
+        calories = analysisData['estimated_calories'] ?? 200;
+        
+        // Extract meal items for detailed view (backend returns breakdown list with 'item' not 'item_name')
+        final items = response['breakdown'] as List<dynamic>? ?? [];
+        final itemsText = items.map((item) => 
+          '${item['item']}: ${item['calories']} cal'
+        ).join(', ');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'AI estimated $calories calories${itemsText.isNotEmpty ? "\\n$itemsText" : ""}',
+              ),
+              backgroundColor: AppTheme.secondary,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      } catch (e) {
+        print('❌ Error analyzing meal with AI: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('AI analysis failed: ${e.toString()}. Using fallback estimation.'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        // Fallback to simple estimation
+        calories = _estimateCaloriesFromDescription(_descriptionController.text);
+      }
     }
 
     // Set loading state
@@ -207,7 +342,7 @@ class _RealTimeMealAdjustmentScreenState
           mealName: newMeal['mealName'] as String,
           calories: calories,
           mealType: 'Custom',
-        ).then((_) {
+        ).then((_) async {
           // Success: Update temp meal with real Firestore ID
           if (mounted) {
             setState(() {
@@ -217,6 +352,10 @@ class _RealTimeMealAdjustmentScreenState
               }
             });
             widget.onDataChanged?.call();
+            
+            // Clear suggestions cache and reload with new meal context
+            await _apiService.clearMealSuggestionsCache(userId: user.uid);
+            await _loadMealSuggestions();
           }
         }).catchError((e) {
           // Error: Remove from local list and show error
@@ -814,6 +953,15 @@ class _RealTimeMealAdjustmentScreenState
                           color: AppTheme.textDark,
                         ),
                       ),
+                      const Spacer(),
+                      if (_isLoadingSuggestions)
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -825,11 +973,25 @@ class _RealTimeMealAdjustmentScreenState
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildSuggestionItem(
-                    'Grilled salmon with vegetables (380 cal)',
-                  ),
-                  _buildSuggestionItem('Quinoa bowl with chickpeas (420 cal)'),
-                  _buildSuggestionItem('Turkey wrap with hummus (350 cal)'),
+                  if (_mealSuggestions.isEmpty && !_isLoadingSuggestions)
+                    Text(
+                      'Loading personalized suggestions...',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textDark.withValues(alpha: 0.6),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    )
+                  else
+                    ..._mealSuggestions.map((suggestion) {
+                      final name = suggestion['name'] as String;
+                      final calories = suggestion['calories'] as int;
+                      final description = suggestion['description'] as String?;
+                      return _buildSuggestionItem(
+                        '$name ($calories cal)',
+                        description,
+                      );
+                    }).toList(),
                 ],
               ),
             ),
@@ -1016,7 +1178,7 @@ class _RealTimeMealAdjustmentScreenState
     );
   }
 
-  Widget _buildSuggestionItem(String text) {
+  Widget _buildSuggestionItem(String text, [String? description]) {
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
@@ -1033,12 +1195,29 @@ class _RealTimeMealAdjustmentScreenState
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppTheme.textDark.withValues(alpha: 0.8),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textDark.withValues(alpha: 0.9),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (description != null && description.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textDark.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ],

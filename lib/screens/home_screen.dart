@@ -8,6 +8,7 @@ import 'logs_screen.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 import 'profile_screen.dart';
+import 'generated_recipes_screen.dart';
 import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -57,12 +58,17 @@ class _HomeScreenState extends State<HomeScreen> {
       onDataChanged: _refreshAllScreens,
     ),
     const RecipesScreen(),
-    const SmartRecipeGeneratorScreen(),
+    SmartRecipeGeneratorScreen(
+      key: ValueKey('generator_$_refreshKey'),
+    ),
     RealTimeMealAdjustmentScreen(
       key: ValueKey('meals_$_refreshKey'),
       onDataChanged: _refreshAllScreens,
     ),
     const LogsScreen(),
+    GeneratedRecipesScreen(
+      key: ValueKey('saved_recipes_$_refreshKey'),
+    ),
     ProfileScreen(
       key: ValueKey('profile_$_refreshKey'),
       isLoggedIn: _currentLoginState,
@@ -119,6 +125,10 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.history),
               label: 'Logs',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.bookmark),
+              label: 'Saved',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person),
@@ -181,6 +191,17 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             _selectedIndex = 4; // Navigate to profile tab
           });
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.bookmark, color: AppTheme.primary),
+        title: const Text('My Generated Recipes'),
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const GeneratedRecipesScreen()),
+          );
         },
       ),
       ListTile(

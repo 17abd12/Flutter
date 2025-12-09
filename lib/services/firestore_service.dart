@@ -9,6 +9,7 @@ class FirestoreService {
   CollectionReference get _mealsCollection => _db.collection('meals');
   CollectionReference get _exercisesCollection => _db.collection('exercises');
   CollectionReference get _weightHistoryCollection => _db.collection('weight_history');
+  CollectionReference get _generatedRecipesCollection => _db.collection('generated_recipes');
 
   // ==================== USER OPERATIONS ====================
 
@@ -356,6 +357,99 @@ class FirestoreService {
       };
     } catch (e) {
       throw 'Failed to get dashboard summary: ${e.toString()}';
+    }
+  }
+
+  // ==================== GENERATED RECIPES OPERATIONS ====================
+
+  // Save a generated recipe
+  Future<String> saveGeneratedRecipe({
+    required String uid,
+    required String recipeName,
+    required Map<String, dynamic> recipeData,
+  }) async {
+    try {
+      final docRef = await _generatedRecipesCollection.add({
+        'uid': uid,
+        'name': recipeName,
+        'description': recipeData['description'] ?? '',
+        'prepTime': recipeData['prep_time'] ?? '',
+        'cookTime': recipeData['cook_time'] ?? '',
+        'servings': recipeData['servings'] ?? 2,
+        'difficulty': recipeData['difficulty'] ?? 'Medium',
+        'calories': recipeData['nutrition']?['calories'] ?? 0,
+        'protein': recipeData['nutrition']?['protein'] ?? 0,
+        'carbs': recipeData['nutrition']?['carbs'] ?? 0,
+        'fats': recipeData['nutrition']?['fats'] ?? 0,
+        'ingredients': recipeData['ingredients'] ?? [],
+        'instructions': recipeData['instructions'] ?? [],
+        'tips': recipeData['tips'] ?? [],
+        'cuisine': recipeData['cuisine'] ?? 'Unknown',
+        'mealType': recipeData['meal_type'] ?? 'Dinner',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return docRef.id;
+    } catch (e) {
+      throw 'Failed to save generated recipe: ${e.toString()}';
+    }
+  }
+
+  // Get all generated recipes for a user (without ordering to avoid index requirement)
+  Future<List<Map<String, dynamic>>> getUserGeneratedRecipes(String uid) async {
+    try {
+      QuerySnapshot snapshot = await _generatedRecipesCollection
+          .where('uid', isEqualTo: uid)
+          .get();
+
+      // Sort in memory by createdAt
+      final recipes = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'id': doc.id,
+          ...data,
+          'createdAt': (data['createdAt'] as Timestamp?)?.toDate().toIso8601String(),
+          '_timestamp': (data['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0,
+        };
+      }).toList();
+      
+      // Sort by timestamp descending (newest first)
+      recipes.sort((a, b) => (b['_timestamp'] as int).compareTo(a['_timestamp'] as int));
+      
+      // Remove the temporary _timestamp field
+      for (var recipe in recipes) {
+        recipe.remove('_timestamp');
+      }
+      
+      return recipes;
+    } catch (e) {
+      throw 'Failed to get generated recipes: ${e.toString()}';
+    }
+  }
+
+  // Get a single generated recipe by ID
+  Future<Map<String, dynamic>?> getGeneratedRecipe(String recipeId) async {
+    try {
+      DocumentSnapshot doc = await _generatedRecipesCollection.doc(recipeId).get();
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'id': doc.id,
+          ...data,
+          'createdAt': (data['createdAt'] as Timestamp?)?.toDate().toIso8601String(),
+        };
+      }
+      return null;
+    } catch (e) {
+      throw 'Failed to get generated recipe: ${e.toString()}';
+    }
+  }
+
+  // Delete a generated recipe
+  Future<void> deleteGeneratedRecipe(String recipeId) async {
+    try {
+      await _generatedRecipesCollection.doc(recipeId).delete();
+    } catch (e) {
+      throw 'Failed to delete generated recipe: ${e.toString()}';
     }
   }
 }

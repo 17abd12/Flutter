@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../services/auth_service.dart';
+import '../services/api_service.dart';
+import '../services/firestore_service.dart';
+import '../services/recipe_generation_state.dart';
 
 class SmartRecipeGeneratorScreen extends StatefulWidget {
   const SmartRecipeGeneratorScreen({super.key});
@@ -11,17 +15,21 @@ class SmartRecipeGeneratorScreen extends StatefulWidget {
 
 class _SmartRecipeGeneratorScreenState
     extends State<SmartRecipeGeneratorScreen> {
+  final AuthService _authService = AuthService();
+  final ApiService _apiService = ApiService();
+  final FirestoreService _firestoreService = FirestoreService();
+  final RecipeGenerationState _generationState = RecipeGenerationState();
+  
   final TextEditingController _ingredientsController = TextEditingController();
-  String _selectedCuisine = 'Any';
-  String _selectedDifficulty = 'Any';
-  String _selectedMealType = 'Any';
-  bool _isVegetarian = false;
-  bool _isVegan = false;
-  bool _isGlutenFree = false;
+  String _selectedCuisine = 'Italian';
+  String _selectedDifficulty = 'Medium';
+  String _selectedMealType = 'Dinner';
+  String _selectedMealPreference = 'Balanced';
   bool _generatedRecipe = false;
+  
+  Map<String, dynamic>? _generatedRecipeData;
 
   final List<String> _cuisines = [
-    'Any',
     'Italian',
     'Indian',
     'Chinese',
@@ -31,22 +39,56 @@ class _SmartRecipeGeneratorScreenState
     'Thai',
     'Japanese',
   ];
-  final List<String> _difficulties = ['Any', 'Easy', 'Medium', 'Hard'];
+  final List<String> _difficulties = ['Easy', 'Medium', 'Hard'];
   final List<String> _mealTypes = [
-    'Any',
     'Breakfast',
     'Lunch',
     'Dinner',
     'Snack',
   ];
+  final List<String> _mealPreferences = [
+    'Balanced',
+    'High-Protein',
+    'Low-Carb',
+    'Vegetarian',
+    'Vegan',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen to generation state changes
+    _generationState.addListener(_onGenerationStateChanged);
+    
+    // Check if there's a completed recipe from previous generation
+    if (_generationState.lastGeneratedRecipe != null) {
+      setState(() {
+        _generatedRecipeData = _generationState.lastGeneratedRecipe;
+        _generatedRecipe = true;
+      });
+    }
+  }
+
+  void _onGenerationStateChanged() {
+    if (mounted) {
+      setState(() {
+        // If generation just completed, update UI
+        if (!_generationState.isGenerating && _generationState.lastGeneratedRecipe != null) {
+          _generatedRecipeData = _generationState.lastGeneratedRecipe;
+          _generatedRecipe = true;
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
+    _generationState.removeListener(_onGenerationStateChanged);
     _ingredientsController.dispose();
     super.dispose();
   }
 
-  void _generateRecipe() {
+  Future<void> _generateRecipe() async {
     if (_ingredientsController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -57,9 +99,122 @@ class _SmartRecipeGeneratorScreenState
       return;
     }
 
+    final user = _authService.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to generate recipes'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    
     setState(() {
-      _generatedRecipe = true;
+      _generationState.startGeneration();
+      _generatedRecipe = false;
     });
+
+    try {
+      // Get user profile
+      final userProfile = await _firestoreService.getUserProfile(user.uid);
+      if (userProfile == null) {
+        throw Exception('User profile not found');
+      }
+
+      // Get today's meals and exercises
+      final today = DateTime.now();
+      final mealsToday = await _firestoreService.getMealsForDate(user.uid, today);
+      final exercisesToday = await _firestoreService.getTodayExercises(user.uid);
+      
+      final caloriesIntakeToday = mealsToday.fold<int>(
+        0, 
+        (sum, meal) => sum + (meal['calories'] as int? ?? 0)
+      );
+      final caloriesBurntToday = exercisesToday.fold<int>(
+        0, 
+        (sum, ex) => sum + (ex['caloriesBurned'] as int? ?? 0)
+      );
+
+      // Parse ingredients
+      final ingredientsList = _ingredientsController.text
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+
+      // Use selected meal preference
+      String mealPreference = _selectedMealPreference;
+
+      print('🤖 Generating smart recipe with:');
+      print('   Ingredients: $ingredientsList');
+      print('   Cuisine: $_selectedCuisine');
+      print('   Meal Type: $_selectedMealType');
+      print('   Difficulty: $_selectedDifficulty');
+      print('   Preference: $mealPreference');
+
+      // Call backend API
+      final response = await _apiService.generateSmartRecipe(
+        userId: user.uid,
+        ingredients: ingredientsList,
+        cuisineType: _selectedCuisine,
+        mealType: _selectedMealType.toLowerCase(),
+        difficulty: _selectedDifficulty.toLowerCase(),
+        mealPreference: mealPreference.toLowerCase(),
+        calorieGoal: userProfile.calorieIntakeGoal,
+        caloriesIntakeToday: caloriesIntakeToday,
+        caloriesBurntToday: caloriesBurntToday,
+        currentWeight: userProfile.currentWeight,
+        targetWeight: userProfile.targetWeight,
+        height: userProfile.height,
+        age: userProfile.age,
+        gender: userProfile.gender.toLowerCase(),
+        goal: userProfile.goal,
+        activityLevel: userProfile.activityLevel,
+      );
+
+      if (!mounted) return;
+      
+      setState(() {
+        _generatedRecipeData = response;
+        _generatedRecipe = true;
+      });
+      
+      _generationState.completeGeneration(response);
+
+      print('✅ Recipe generated successfully!');
+      
+      // Save generated recipe to Firestore
+      try {
+        // Extract recipe data from the response
+        final recipeData = response['recipe'] ?? response;
+        await _firestoreService.saveGeneratedRecipe(
+          uid: user.uid,
+          recipeName: recipeData['name'] ?? 'Unnamed Recipe',
+          recipeData: recipeData,
+        );
+        print('✅ Recipe saved to Firestore');
+      } catch (saveError) {
+        print('⚠️ Failed to save recipe to Firestore: $saveError');
+        // Don't show error to user, recipe is still generated
+      }
+
+    } catch (e) {
+      print('❌ Error generating recipe: $e');
+      _generationState.failGeneration(e.toString());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate recipe: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -84,17 +239,18 @@ class _SmartRecipeGeneratorScreenState
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Clear and start new recipe',
             onPressed: () {
               setState(() {
                 _ingredientsController.clear();
-                _selectedCuisine = 'Any';
-                _selectedDifficulty = 'Any';
-                _selectedMealType = 'Any';
-                _isVegetarian = false;
-                _isVegan = false;
-                _isGlutenFree = false;
+                _selectedCuisine = 'Italian';
+                _selectedDifficulty = 'Medium';
+                _selectedMealType = 'Dinner';
+                _selectedMealPreference = 'Balanced';
                 _generatedRecipe = false;
+                _generatedRecipeData = null;
               });
+              _generationState.clearLastRecipe();
             },
           ),
         ],
@@ -246,83 +402,56 @@ class _SmartRecipeGeneratorScreenState
             (value) => setState(() => _selectedDifficulty = value!),
             Icons.bar_chart,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-          // Dietary Restrictions
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.card,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.health_and_safety,
-                      color: AppTheme.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Dietary Restrictions',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textDark,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildCheckbox(
-                  'Vegetarian',
-                  _isVegetarian,
-                  (value) => setState(() => _isVegetarian = value!),
-                ),
-                _buildCheckbox(
-                  'Vegan',
-                  _isVegan,
-                  (value) => setState(() => _isVegan = value!),
-                ),
-                _buildCheckbox(
-                  'Gluten-Free',
-                  _isGlutenFree,
-                  (value) => setState(() => _isGlutenFree = value!),
-                ),
-              ],
-            ),
+          // Meal Preference Selection
+          _buildDropdownCard(
+            'Meal Preference',
+            _selectedMealPreference,
+            _mealPreferences,
+            (value) => setState(() => _selectedMealPreference = value!),
+            Icons.restaurant_menu,
           ),
           const SizedBox(height: 24),
 
-          // Generate Button
-          ElevatedButton(
-            onPressed: _generateRecipe,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+          // Generate Button or Loading Indicator
+          if (_generationState.isGenerating)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Generating your personalized recipe...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ],
               ),
-              elevation: 4,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.auto_awesome, size: 24),
-                SizedBox(width: 12),
-                Text(
-                  'Generate Recipe',
+            )
+          else
+            ElevatedButton(
+              onPressed: _generateRecipe,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 4,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.auto_awesome, size: 24),
+                  SizedBox(width: 12),
+                  Text(
+                    'Generate Recipe',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
@@ -395,21 +524,15 @@ class _SmartRecipeGeneratorScreenState
     );
   }
 
-  Widget _buildCheckbox(String label, bool value, Function(bool?) onChanged) {
-    return CheckboxListTile(
-      title: Text(
-        label,
-        style: const TextStyle(fontSize: 14, color: AppTheme.textDark),
-      ),
-      value: value,
-      onChanged: onChanged,
-      activeColor: AppTheme.primary,
-      contentPadding: EdgeInsets.zero,
-      controlAffinity: ListTileControlAffinity.leading,
-    );
-  }
-
   Widget _buildGeneratedRecipe() {
+    if (_generatedRecipeData == null) {
+      return const SizedBox.shrink();
+    }
+
+    final recipe = _generatedRecipeData!['recipe'] as Map<String, dynamic>;
+    final analysis = _generatedRecipeData!['analysis'] as Map<String, dynamic>;
+    final source = _generatedRecipeData!['source'] as String;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -441,11 +564,11 @@ class _SmartRecipeGeneratorScreenState
                 ),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'AI-Generated Recipe',
                       style: TextStyle(
                         fontSize: 20,
@@ -454,8 +577,10 @@ class _SmartRecipeGeneratorScreenState
                       ),
                     ),
                     Text(
-                      'Based on your ingredients',
-                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                      source == 'rag_enhanced'
+                          ? 'From our recipe database'
+                          : 'Custom generated for you',
+                      style: const TextStyle(fontSize: 13, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -465,170 +590,255 @@ class _SmartRecipeGeneratorScreenState
           const SizedBox(height: 20),
 
           // Recipe Title
-          const Text(
-            'Savory Chicken Tomato Skillet',
-            style: TextStyle(
+          Text(
+            recipe['name'] ?? 'Generated Recipe',
+            style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: AppTheme.textDark,
             ),
           ),
+          const SizedBox(height: 8),
+
+          // Recipe Description
+          if (recipe['description'] != null)
+            Text(
+              recipe['description'],
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
           const SizedBox(height: 16),
 
           // Recipe Stats
           Row(
             children: [
-              _buildStatBadge(Icons.timer, '30 min', Colors.blue),
-              const SizedBox(width: 8),
-              _buildStatBadge(
-                Icons.local_fire_department,
-                '420 cal',
-                Colors.orange,
-              ),
-              const SizedBox(width: 8),
+              if (recipe['prep_time'] != null)
+                _buildStatBadge(
+                    Icons.access_time, recipe['prep_time'], Colors.blue),
+              if (recipe['prep_time'] != null) const SizedBox(width: 8),
+              if (recipe['cook_time'] != null)
+                _buildStatBadge(Icons.timer, recipe['cook_time'], Colors.green),
+              if (recipe['cook_time'] != null) const SizedBox(width: 8),
+              if (recipe['nutrition']?['calories'] != null)
+                _buildStatBadge(
+                  Icons.local_fire_department,
+                  '${recipe['nutrition']['calories']} cal',
+                  Colors.orange,
+                ),
+              if (recipe['nutrition']?['calories'] != null)
+                const SizedBox(width: 8),
               _buildStatBadge(
                 Icons.bar_chart,
-                _selectedDifficulty,
+                recipe['difficulty'] ?? 'Medium',
                 AppTheme.primary,
               ),
             ],
           ),
           const SizedBox(height: 20),
 
-          // Ingredients List
-          const Text(
-            'Ingredients:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
+          // Nutrition Info
+          if (recipe['nutrition'] != null) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.blue.withValues(alpha: 0.2),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Nutrition (per serving)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNutritionItem(
+                        'Protein',
+                        '${recipe['nutrition']['protein'] ?? 0}g',
+                      ),
+                      _buildNutritionItem(
+                        'Carbs',
+                        '${recipe['nutrition']['carbs'] ?? 0}g',
+                      ),
+                      _buildNutritionItem(
+                        'Fats',
+                        '${recipe['nutrition']['fats'] ?? 0}g',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          _buildIngredientItem('2 chicken breasts, diced'),
-          _buildIngredientItem('3 large tomatoes, chopped'),
-          _buildIngredientItem('1 large onion, sliced'),
-          _buildIngredientItem('4 cloves garlic, minced'),
-          _buildIngredientItem('2 tbsp olive oil'),
-          _buildIngredientItem('Salt and pepper to taste'),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
+          ],
+
+          // Analysis Section
+          if (analysis.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: analysis['fits_goal'] == true
+                    ? Colors.green.withValues(alpha: 0.05)
+                    : Colors.orange.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: analysis['fits_goal'] == true
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : Colors.orange.withValues(alpha: 0.2),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        analysis['fits_goal'] == true
+                            ? Icons.check_circle
+                            : Icons.info,
+                        color: analysis['fits_goal'] == true
+                            ? Colors.green
+                            : Colors.orange,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Personalized Analysis',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textDark,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (analysis['recommendation'] != null)
+                    Text(
+                      analysis['recommendation'],
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[800],
+                        height: 1.4,
+                      ),
+                    ),
+                  if (analysis['remaining_calories_today'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Remaining calories today: ${analysis['remaining_calories_today']} cal',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  if (analysis['protein_percentage'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Protein: ${analysis['protein_percentage']}% of calories',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // Ingredients List
+          if (recipe['ingredients'] != null &&
+              (recipe['ingredients'] as List).isNotEmpty) ...[
+            const Text(
+              'Ingredients:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...(recipe['ingredients'] as List).map((ingredient) {
+              return _buildIngredientItem(ingredient.toString());
+            }),
+            const SizedBox(height: 20),
+          ],
 
           // Instructions
-          const Text(
-            'Instructions:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
+          if (recipe['instructions'] != null &&
+              (recipe['instructions'] as List).isNotEmpty) ...[
+            const Text(
+              'Instructions:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textDark,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          _buildInstructionItem(
-            1,
-            'Heat olive oil in a large skillet over medium heat.',
-          ),
-          _buildInstructionItem(
-            2,
-            'Add diced chicken and cook until browned (5-7 minutes).',
-          ),
-          _buildInstructionItem(
-            3,
-            'Add onions and garlic, sauté until fragrant (2-3 minutes).',
-          ),
-          _buildInstructionItem(
-            4,
-            'Add chopped tomatoes and cook until softened (5 minutes).',
-          ),
-          _buildInstructionItem(
-            5,
-            'Season with salt and pepper. Simmer for 10 minutes.',
-          ),
-          _buildInstructionItem(6, 'Serve hot with rice or pasta. Enjoy!'),
-          const SizedBox(height: 20),
+            const SizedBox(height: 8),
+            ...(recipe['instructions'] as List).asMap().entries.map((entry) {
+              return _buildInstructionItem(entry.key + 1, entry.value.toString());
+            }),
+            const SizedBox(height: 20),
+          ],
 
-          // Nutrition Info
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+          // Tips Section
+          if (recipe['tips'] != null &&
+              (recipe['tips'] as List).isNotEmpty) ...[
+            const Text(
+              'Pro Tips:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textDark,
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Nutrition (per serving):',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+            const SizedBox(height: 8),
+            ...(recipe['tips'] as List).map((tip) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildNutritionItem('Protein', '38g'),
-                    _buildNutritionItem('Carbs', '24g'),
-                    _buildNutritionItem('Fats', '18g'),
-                    _buildNutritionItem('Fiber', '5g'),
+                    const Icon(Icons.lightbulb_outline,
+                        size: 18, color: AppTheme.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        tip.toString(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Recipe saved to favorites!'),
-                        backgroundColor: AppTheme.primary,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.favorite_border),
-                  label: const Text('Save'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primary,
-                    side: const BorderSide(color: AppTheme.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Recipe added to meal plan!'),
-                        backgroundColor: AppTheme.primary,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add_circle),
-                  label: const Text('Add to Plan'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+              );
+            }),
+          ],
         ],
       ),
     );

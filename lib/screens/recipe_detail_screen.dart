@@ -57,23 +57,7 @@ class RecipeDetailScreen extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           // Recipe Image Header
-          Container(
-            height: isSmallScreen ? 200 : 250,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.primary.withOpacity(0.4),
-                  AppTheme.secondary.withOpacity(0.4),
-                ],
-              ),
-            ),
-            child: Center(
-              child: Text(
-                recipe['image'],
-                style: TextStyle(fontSize: isSmallScreen ? 80 : 100),
-              ),
-            ),
-          ),
+          _buildRecipeImage(recipe, isSmallScreen),
 
           Padding(
             padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
@@ -138,12 +122,24 @@ class RecipeDetailScreen extends StatelessWidget {
                         children: [
                           _buildNutritionItem(
                             'Protein',
-                            '${recipe['protein']}g',
+                            '${_getNutritionValue(recipe, 'protein')}g',
                             isSmallScreen,
                           ),
-                          _buildNutritionItem('Carbs', '45g', isSmallScreen),
-                          _buildNutritionItem('Fats', '12g', isSmallScreen),
-                          _buildNutritionItem('Fiber', '8g', isSmallScreen),
+                          _buildNutritionItem(
+                            'Carbs', 
+                            '${_getNutritionValue(recipe, 'carbs')}g', 
+                            isSmallScreen
+                          ),
+                          _buildNutritionItem(
+                            'Fats', 
+                            '${_getNutritionValue(recipe, 'fats')}g', 
+                            isSmallScreen
+                          ),
+                          _buildNutritionItem(
+                            'Fiber', 
+                            '${_getNutritionValue(recipe, 'fiber')}g', 
+                            isSmallScreen
+                          ),
                         ],
                       ),
                     ],
@@ -176,32 +172,7 @@ class RecipeDetailScreen extends StatelessWidget {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildIngredientItem(
-                        '2 cups fresh spinach',
-                        isSmallScreen,
-                      ),
-                      _buildIngredientItem(
-                        '1 large chicken breast (200g)',
-                        isSmallScreen,
-                      ),
-                      _buildIngredientItem('1/2 cup quinoa', isSmallScreen),
-                      _buildIngredientItem('1 tbsp olive oil', isSmallScreen),
-                      _buildIngredientItem(
-                        '2 cloves garlic, minced',
-                        isSmallScreen,
-                      ),
-                      _buildIngredientItem('1 tsp salt', isSmallScreen),
-                      _buildIngredientItem(
-                        '1/2 tsp black pepper',
-                        isSmallScreen,
-                      ),
-                      _buildIngredientItem(
-                        '1/4 cup cherry tomatoes',
-                        isSmallScreen,
-                      ),
-                      _buildIngredientItem('1 tbsp lemon juice', isSmallScreen),
-                    ],
+                    children: _buildIngredientsList(recipe, isSmallScreen),
                   ),
                 ),
                 SizedBox(height: isSmallScreen ? 20 : 24),
@@ -231,58 +202,7 @@ class RecipeDetailScreen extends StatelessWidget {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInstructionStep(
-                        1,
-                        'Rinse the quinoa under cold water and cook according to package instructions. Set aside.',
-                        isSmallScreen,
-                      ),
-                      _buildInstructionStep(
-                        2,
-                        'Season the chicken breast with salt and pepper on both sides.',
-                        isSmallScreen,
-                      ),
-                      _buildInstructionStep(
-                        3,
-                        'Heat olive oil in a large skillet over medium-high heat.',
-                        isSmallScreen,
-                      ),
-                      _buildInstructionStep(
-                        4,
-                        'Add the chicken breast to the skillet and cook for 6-7 minutes on each side until golden brown and cooked through. Remove and let it rest.',
-                        isSmallScreen,
-                      ),
-                      _buildInstructionStep(
-                        5,
-                        'In the same skillet, add minced garlic and sauté for 30 seconds until fragrant.',
-                        isSmallScreen,
-                      ),
-                      _buildInstructionStep(
-                        6,
-                        'Add the fresh spinach and cherry tomatoes. Cook for 2-3 minutes until spinach is wilted.',
-                        isSmallScreen,
-                      ),
-                      _buildInstructionStep(
-                        7,
-                        'Slice the chicken breast into strips and add it back to the skillet.',
-                        isSmallScreen,
-                      ),
-                      _buildInstructionStep(
-                        8,
-                        'Add the cooked quinoa to the skillet and mix everything together.',
-                        isSmallScreen,
-                      ),
-                      _buildInstructionStep(
-                        9,
-                        'Drizzle with lemon juice and toss to combine. Adjust seasoning if needed.',
-                        isSmallScreen,
-                      ),
-                      _buildInstructionStep(
-                        10,
-                        'Serve hot and enjoy your healthy meal!',
-                        isSmallScreen,
-                      ),
-                    ],
+                    children: _buildInstructionsList(recipe, isSmallScreen),
                   ),
                 ),
                 SizedBox(height: isSmallScreen ? 16 : 20),
@@ -416,6 +336,153 @@ class RecipeDetailScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Widget _buildRecipeImage(Map<String, dynamic> recipe, bool isSmallScreen) {
+    final imageUrl = recipe['image_url'];
+    final hasValidUrl = imageUrl != null && 
+                        imageUrl.toString().isNotEmpty && 
+                        imageUrl.toString() != 'N/A' &&
+                        (imageUrl.toString().startsWith('http://') || 
+                         imageUrl.toString().startsWith('https://'));
+    
+    String getProxiedUrl(String url) {
+      if (url.isNotEmpty && (url.startsWith('http://') || url.startsWith('https://'))) {
+        return 'https://images.weserv.nl/?url=${Uri.encodeComponent(url)}';
+      }
+      return url;
+    }
+    
+    final displayUrl = hasValidUrl ? getProxiedUrl(imageUrl) : '';
+    
+    return ClipRRect(
+      child: hasValidUrl
+          ? Image.network(
+              displayUrl,
+              height: isSmallScreen ? 200 : 250,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  height: isSmallScreen ? 200 : 250,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.primary.withOpacity(0.4),
+                        AppTheme.secondary.withOpacity(0.4),
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      recipe['image'] ?? '🍽️',
+                      style: TextStyle(fontSize: isSmallScreen ? 80 : 100),
+                    ),
+                  ),
+                );
+              },
+            )
+          : Container(
+              height: isSmallScreen ? 200 : 250,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.primary.withOpacity(0.4),
+                    AppTheme.secondary.withOpacity(0.4),
+                  ],
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  recipe['image'] ?? '🍽️',
+                  style: TextStyle(fontSize: isSmallScreen ? 80 : 100),
+                ),
+              ),
+            ),
+    );
+  }
+
+  dynamic _getNutritionValue(Map<String, dynamic> recipe, String nutrient) {
+    // Check if nutritions field exists and is a map
+    if (recipe['nutritions'] != null && recipe['nutritions'] is Map) {
+      final nutritions = recipe['nutritions'] as Map<String, dynamic>;
+      if (nutritions[nutrient] != null) {
+        return nutritions[nutrient];
+      }
+    }
+    
+    // Fallback to direct recipe field
+    if (recipe[nutrient] != null) {
+      return recipe[nutrient];
+    }
+    
+    // Default values
+    return 0;
+  }
+
+  List<Widget> _buildIngredientsList(Map<String, dynamic> recipe, bool isSmallScreen) {
+    // Debug: Print recipe keys and ingredients value
+    print('🔍 Recipe keys: ${recipe.keys.toList()}');
+    print('🔍 Ingredients type: ${recipe['ingredients']?.runtimeType}');
+    print('🔍 Ingredients value: ${recipe['ingredients']}');
+    
+    // Check if ingredients field exists
+    if (recipe['ingredients'] != null && recipe['ingredients'] is List) {
+      final ingredients = recipe['ingredients'] as List;
+      print('✅ Found ${ingredients.length} ingredients');
+      if (ingredients.isNotEmpty) {
+        return ingredients.map((ingredient) {
+          return _buildIngredientItem(ingredient.toString(), isSmallScreen);
+        }).toList();
+      }
+    }
+    
+    print('❌ No ingredients found in recipe data');
+    // Fallback to default message
+    return [
+      Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Text(
+          'Ingredients information not available',
+          style: TextStyle(
+            fontSize: isSmallScreen ? 13 : 15,
+            color: AppTheme.textDark.withOpacity(0.6),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildInstructionsList(Map<String, dynamic> recipe, bool isSmallScreen) {
+    // Check if instructions field exists
+    if (recipe['instructions'] != null && recipe['instructions'] is List) {
+      final instructions = recipe['instructions'] as List;
+      if (instructions.isNotEmpty) {
+        return instructions.asMap().entries.map((entry) {
+          return _buildInstructionStep(
+            entry.key + 1, 
+            entry.value.toString(), 
+            isSmallScreen
+          );
+        }).toList();
+      }
+    }
+    
+    // Fallback to default message
+    return [
+      Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Text(
+          'Cooking instructions not available',
+          style: TextStyle(
+            fontSize: isSmallScreen ? 13 : 15,
+            color: AppTheme.textDark.withOpacity(0.6),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ),
+    ];
   }
 
   Widget _buildIngredientItem(String text, bool isSmallScreen) {

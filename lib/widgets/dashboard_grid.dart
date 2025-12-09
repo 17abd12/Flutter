@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../models/mock_data.dart';
+import '../models/user_model.dart';
 import '../screens/login_screen.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/api_service.dart';
 
 class DashboardGrid extends StatefulWidget {
   final bool isLoggedIn;
@@ -604,17 +606,68 @@ class _AddExerciseDialogState extends State<AddExerciseDialog> {
                 caloriesBurned = int.parse(_caloriesController.text);
                 durationMinutes = 30; // Default duration
               } else {
-                // AI estimation (mock for now - estimate based on duration and intensity)
+                // AI estimation via backend API
                 durationMinutes = int.parse(_durationController.text);
-                double multiplier;
-                switch (_selectedIntensity) {
-                  case 'Low': multiplier = 3.0; break;
-                  case 'Medium': multiplier = 5.0; break;
-                  case 'High': multiplier = 7.0; break;
-                  case 'Very High': multiplier = 9.0; break;
-                  default: multiplier = 5.0;
+                
+                try {
+                  // Fetch user profile for API request
+                  final userProfile = await _firestoreService.getUserProfile(user.uid);
+                  if (userProfile == null) {
+                    throw Exception('User profile not found');
+                  }
+
+                  // Convert intensity to API format
+                  String intensityForApi;
+                  switch (_selectedIntensity) {
+                    case 'Low': intensityForApi = 'low'; break;
+                    case 'Medium': intensityForApi = 'moderate'; break;
+                    case 'High': intensityForApi = 'high'; break;
+                    case 'Very High': intensityForApi = 'very_high'; break;
+                    default: intensityForApi = 'moderate';
+                  }
+
+                  // Call backend API for exercise calorie calculation
+                  final ApiService apiService = ApiService();
+                  final response = await apiService.calculateExerciseCalories(
+                    userId: user.uid,
+                    exerciseName: _exerciseNameController.text,
+                    durationMinutes: durationMinutes,
+                    intensity: intensityForApi,
+                    currentWeight: userProfile.currentWeight,
+                    height: userProfile.height,
+                    age: userProfile.age,
+                    gender: userProfile.gender.toLowerCase(),
+                  );
+
+                  caloriesBurned = response['calories_burned'] ?? 0;
+                  
+                  // Show additional info from API
+                  final heartRate = response['heart_rate_zone'];
+                  print('Exercise API Response: $caloriesBurned cal, HR Zone: $heartRate');
+                  
+                } catch (e) {
+                  print('Error calculating exercise calories with API: $e');
+                  // Fallback to simple calculation
+                  double multiplier;
+                  switch (_selectedIntensity) {
+                    case 'Low': multiplier = 3.0; break;
+                    case 'Medium': multiplier = 5.0; break;
+                    case 'High': multiplier = 7.0; break;
+                    case 'Very High': multiplier = 9.0; break;
+                    default: multiplier = 5.0;
+                  }
+                  caloriesBurned = (durationMinutes * multiplier).round();
+                  
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Using fallback calculation: $e'),
+                        backgroundColor: Colors.orange,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
                 }
-                caloriesBurned = (durationMinutes * multiplier).round();
               }
 
               await _firestoreService.logExercise(
