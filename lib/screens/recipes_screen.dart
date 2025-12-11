@@ -4,6 +4,7 @@ import '../models/mock_data.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/firestore_service.dart';
+import '../widgets/favorite_button.dart';
 import 'recipe_detail_screen.dart';
 
 class RecipesScreen extends StatefulWidget {
@@ -265,11 +266,13 @@ class _RecipesScreenState extends State<RecipesScreen> {
                                 color: Colors.white,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                _errorMessage!,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white,
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ],
@@ -457,13 +460,23 @@ class _RecipesScreenState extends State<RecipesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    recipe['name'],
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          recipe['name'],
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textDark,
+                          ),
+                        ),
+                      ),
+                      FavoriteButton(
+                        recipeData: recipe,
+                        recipeSource: 'popular',
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
 

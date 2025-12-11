@@ -5,7 +5,9 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 
 class LogsScreen extends StatefulWidget {
-  const LogsScreen({super.key});
+  final bool showAppBar;
+  
+  const LogsScreen({super.key, this.showAppBar = true});
 
   @override
   State<LogsScreen> createState() => _LogsScreenState();
@@ -184,12 +186,12 @@ class _LogsScreenState extends State<LogsScreen> {
   Widget build(BuildContext context) {
     if (!_isLoggedIn) {
       return Scaffold(
-        appBar: AppBar(
+        appBar: widget.showAppBar ? AppBar(
           title: const Text('Logs'),
           centerTitle: true,
           backgroundColor: AppTheme.primary,
           foregroundColor: Colors.white,
-        ),
+        ) : null,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -216,13 +218,13 @@ class _LogsScreenState extends State<LogsScreen> {
     final netCalories = caloriesConsumed - caloriesBurned;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.showAppBar ? AppBar(
         title: const Text('Activity Logs'),
         centerTitle: true,
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         elevation: 0,
-      ),
+      ) : null,
       body: SingleChildScrollView(
         child: Column(
           children: [

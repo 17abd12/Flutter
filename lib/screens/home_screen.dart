@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../services/auth_service.dart';
+import '../services/recipe_generation_state.dart';
 import 'dashboard_screen.dart';
 import 'recipes_screen.dart';
 import 'smart_recipe_generator_screen.dart';
 import 'real_time_meal_adjustment_screen.dart';
-import 'logs_screen.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 import 'profile_screen.dart';
-import 'generated_recipes_screen.dart';
-import '../services/auth_service.dart';
+import 'library_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isLoggedIn;
@@ -65,9 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
       key: ValueKey('meals_$_refreshKey'),
       onDataChanged: _refreshAllScreens,
     ),
-    const LogsScreen(),
-    GeneratedRecipesScreen(
-      key: ValueKey('saved_recipes_$_refreshKey'),
+    LibraryScreen(
+      key: ValueKey('library_$_refreshKey'),
     ),
     ProfileScreen(
       key: ValueKey('profile_$_refreshKey'),
@@ -123,12 +122,8 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'Tracking',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.history),
-              label: 'Logs',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bookmark),
-              label: 'Saved',
+              icon: Icon(Icons.library_books),
+              label: 'Library',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person),
@@ -189,19 +184,19 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: () {
           Navigator.pop(context);
           setState(() {
-            _selectedIndex = 4; // Navigate to profile tab
+            _selectedIndex = 5; // Navigate to profile tab
           });
         },
       ),
       ListTile(
-        leading: const Icon(Icons.bookmark, color: AppTheme.primary),
-        title: const Text('My Generated Recipes'),
+        leading: const Icon(Icons.library_books, color: AppTheme.primary),
+        title: const Text('My Library'),
+        subtitle: const Text('Saved, Favorites & Logs'),
         onTap: () {
           Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const GeneratedRecipesScreen()),
-          );
+          setState(() {
+            _selectedIndex = 4; // Navigate to library tab
+          });
         },
       ),
       ListTile(
@@ -256,6 +251,8 @@ class _HomeScreenState extends State<HomeScreen> {
             try {
               await _authService.signOut();
               if (!mounted) return;
+              // Clear generated recipe state
+              RecipeGenerationState().reset();
               Navigator.of(context).pop();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

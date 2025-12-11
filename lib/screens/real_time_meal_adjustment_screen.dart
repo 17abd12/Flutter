@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/api_service.dart';
 import '../models/user_model.dart';
+import '../widgets/favorite_button.dart';
 
 class RealTimeMealAdjustmentScreen extends StatefulWidget {
   final VoidCallback? onDataChanged;
@@ -109,12 +110,24 @@ class _RealTimeMealAdjustmentScreenState
           .where((name) => name.isNotEmpty)
           .toList();
 
+      // Get top 5 latest favorite recipes
+      final allFavorites = await _firestoreService.getUserFavoriteRecipes(user.uid);
+      final top5Favorites = allFavorites.take(5).map((fav) => {
+        'name': fav['name'] ?? 'Unknown',
+        'cuisine': fav['cuisine'] ?? 'Unknown',
+        'source': fav['source'] ?? 'unknown',
+        'calories': fav['calories'] ?? 0,
+      }).toList();
+
+      print('🍽️ Sending ${top5Favorites.length} favorite recipes to meal suggestions API');
+
       final response = await _apiService.getMealSuggestions(
         userId: user.uid,
         remainingCalories: remainingCalories,
         mealPreference: userProfile?.mealPreference ?? 'balanced',
         goal: userProfile?.goal ?? 'maintain',
         recentMeals: recentMealNames,
+        favoriteRecipes: top5Favorites,
       );
 
       if (mounted) {
@@ -1155,24 +1168,34 @@ class _RealTimeMealAdjustmentScreenState
             ],
           ),
 
-          // Delete button
-          _deletingMealId == meal['id']
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+          // Favorite and Delete buttons
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FavoriteButton(
+                recipeData: meal,
+                recipeSource: 'meal',
+                onFavoriteChanged: _loadRealData,
+              ),
+              _deletingMealId == meal['id']
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                        ),
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      color: Colors.red.withValues(alpha: 0.6),
+                      onPressed: () => _removeMeal(index),
                     ),
-                  ),
-                )
-              : IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  color: Colors.red.withValues(alpha: 0.6),
-                  onPressed: () => _removeMeal(index),
-                ),
+            ],
+          ),
         ],
       ),
     );

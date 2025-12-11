@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/recipe_generation_state.dart';
 import '../models/user_model.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -568,6 +569,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               try {
                 await _authService.signOut();
                 if (!mounted) return;
+                
+                // Clear generated recipe state
+                RecipeGenerationState().reset();
                 
                 // Navigate back to auth wrapper (will redirect to logged out view)
                 Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);

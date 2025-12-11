@@ -205,6 +205,7 @@ class ApiService {
     required String gender,
     required String goal,
     required String activityLevel,
+    List<Map<String, dynamic>>? favoriteRecipes,
     String? token,
   }) async {
     try {
@@ -228,6 +229,7 @@ class ApiService {
           'gender': gender,
           'goal': goal,
           'activity_level': activityLevel,
+          'favorite_recipes': favoriteRecipes ?? [],
         }),
       );
 
@@ -254,6 +256,7 @@ class ApiService {
     required String mealPreference,
     required String goal,
     List<String>? recentMeals,
+    List<Map<String, dynamic>>? favoriteRecipes,
     String? token,
   }) async {
     try {
@@ -266,6 +269,7 @@ class ApiService {
           'meal_preference': mealPreference,
           'goal': goal,
           'recent_meals': recentMeals ?? [],
+          'favorite_recipes': favoriteRecipes ?? [],
         }),
       );
 

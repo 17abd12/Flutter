@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/recipe_generation_state.dart';
 import 'goal_setup_screen.dart';
 import 'home_screen.dart';
 import '../theme.dart';
@@ -208,6 +209,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     try {
       await _authService.signOut();
       if (mounted) {
+        // Clear generated recipe state
+        RecipeGenerationState().reset();
         Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
       }
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'recipe_generation_state.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -96,6 +97,8 @@ class AuthService {
   Future<void> signOut() async {
     try {
       await _auth.signOut();
+      // Clear generated recipe state on logout
+      RecipeGenerationState().reset();
     } catch (e) {
       throw 'Failed to sign out: ${e.toString()}';
     }

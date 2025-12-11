@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/firestore_service.dart';
 import '../services/recipe_generation_state.dart';
+import '../widgets/favorite_button.dart';
 
 class SmartRecipeGeneratorScreen extends StatefulWidget {
   const SmartRecipeGeneratorScreen({super.key});
@@ -148,12 +149,22 @@ class _SmartRecipeGeneratorScreenState
       // Use selected meal preference
       String mealPreference = _selectedMealPreference;
 
+      // Get top 5 latest favorite recipes
+      final allFavorites = await _firestoreService.getUserFavoriteRecipes(user.uid);
+      final top5Favorites = allFavorites.take(5).map((fav) => {
+        'name': fav['name'] ?? 'Unknown',
+        'cuisine': fav['cuisine'] ?? 'Unknown',
+        'source': fav['source'] ?? 'unknown',
+        'calories': fav['calories'] ?? 0,
+      }).toList();
+
       print('🤖 Generating smart recipe with:');
       print('   Ingredients: $ingredientsList');
       print('   Cuisine: $_selectedCuisine');
       print('   Meal Type: $_selectedMealType');
       print('   Difficulty: $_selectedDifficulty');
       print('   Preference: $mealPreference');
+      print('   Favorite Recipes: ${top5Favorites.length}');
 
       // Call backend API
       final response = await _apiService.generateSmartRecipe(
@@ -173,6 +184,7 @@ class _SmartRecipeGeneratorScreenState
         gender: userProfile.gender.toLowerCase(),
         goal: userProfile.goal,
         activityLevel: userProfile.activityLevel,
+        favoriteRecipes: top5Favorites,
       );
 
       if (!mounted) return;
@@ -589,14 +601,24 @@ class _SmartRecipeGeneratorScreenState
           ),
           const SizedBox(height: 20),
 
-          // Recipe Title
-          Text(
-            recipe['name'] ?? 'Generated Recipe',
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
-            ),
+          // Recipe Title with Favorite Button
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  recipe['name'] ?? 'Generated Recipe',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+              ),
+              FavoriteButton(
+                recipeData: recipe,
+                recipeSource: 'smart',
+              ),
+            ],
           ),
           const SizedBox(height: 8),
 

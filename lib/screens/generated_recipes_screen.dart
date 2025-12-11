@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../widgets/favorite_button.dart';
 import 'generated_recipe_detail_screen.dart';
 
 class GeneratedRecipesScreen extends StatefulWidget {
-  const GeneratedRecipesScreen({super.key});
+  final bool showAppBar;
+  
+  const GeneratedRecipesScreen({super.key, this.showAppBar = true});
 
   @override
   State<GeneratedRecipesScreen> createState() => _GeneratedRecipesScreenState();
@@ -27,28 +30,36 @@ class _GeneratedRecipesScreenState extends State<GeneratedRecipesScreen> {
   Future<void> _loadRecipes() async {
     final user = _authService.currentUser;
     if (user == null) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
       return;
     }
 
     try {
       final recipes = await _firestoreService.getUserGeneratedRecipes(user.uid);
-      setState(() {
-        _recipes = recipes;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _recipes = recipes;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       print('Error loading recipes: $e');
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _deleteRecipe(String recipeId) async {
     try {
       await _firestoreService.deleteGeneratedRecipe(recipeId);
-      setState(() {
-        _recipes.removeWhere((recipe) => recipe['id'] == recipeId);
-      });
+      if (mounted) {
+        setState(() {
+          _recipes.removeWhere((recipe) => recipe['id'] == recipeId);
+        });
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -74,12 +85,12 @@ class _GeneratedRecipesScreenState extends State<GeneratedRecipesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
+      appBar: widget.showAppBar ? AppBar(
         title: const Text('My Generated Recipes'),
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         elevation: 0,
-      ),
+      ) : null,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _recipes.isEmpty
@@ -173,31 +184,41 @@ class _GeneratedRecipesScreenState extends State<GeneratedRecipesScreen> {
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    onPressed: () async {
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Delete Recipe'),
-                          content: const Text('Are you sure you want to delete this recipe?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Cancel'),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FavoriteButton(
+                        recipeData: recipe,
+                        recipeSource: 'generated',
+                        onFavoriteChanged: _loadRecipes,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        onPressed: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Delete Recipe'),
+                              content: const Text('Are you sure you want to delete this recipe?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
                             ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                            ),
-                          ],
-                        ),
-                      );
-                      
-                      if (confirmed == true) {
-                        _deleteRecipe(recipe['id']);
-                      }
-                    },
+                          );
+                          
+                          if (confirmed == true) {
+                            _deleteRecipe(recipe['id']);
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),

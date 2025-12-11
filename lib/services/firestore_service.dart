@@ -10,6 +10,7 @@ class FirestoreService {
   CollectionReference get _exercisesCollection => _db.collection('exercises');
   CollectionReference get _weightHistoryCollection => _db.collection('weight_history');
   CollectionReference get _generatedRecipesCollection => _db.collection('generated_recipes');
+  CollectionReference get _favoriteRecipesCollection => _db.collection('favorite_recipes');
 
   // ==================== USER OPERATIONS ====================
 
@@ -450,6 +451,103 @@ class FirestoreService {
       await _generatedRecipesCollection.doc(recipeId).delete();
     } catch (e) {
       throw 'Failed to delete generated recipe: ${e.toString()}';
+    }
+  }
+
+  // ==================== FAVORITE RECIPES OPERATIONS ====================
+
+  // Save a recipe to favorites
+  Future<String> saveFavoriteRecipe({
+    required String uid,
+    required String recipeName,
+    required Map<String, dynamic> recipeData,
+    required String recipeSource, // 'generated', 'popular', 'smart', 'meal'
+  }) async {
+    try {
+      final docRef = await _favoriteRecipesCollection.add({
+        'uid': uid,
+        'name': recipeName,
+        'description': recipeData['description'] ?? '',
+        'prepTime': recipeData['prep_time'] ?? recipeData['prepTime'] ?? '',
+        'cookTime': recipeData['cook_time'] ?? recipeData['cookTime'] ?? '',
+        'servings': recipeData['servings'] ?? 2,
+        'difficulty': recipeData['difficulty'] ?? 'Medium',
+        'calories': recipeData['nutrition']?['calories'] ?? recipeData['calories'] ?? 0,
+        'protein': recipeData['nutrition']?['protein'] ?? recipeData['protein'] ?? 0,
+        'carbs': recipeData['nutrition']?['carbs'] ?? recipeData['carbs'] ?? 0,
+        'fats': recipeData['nutrition']?['fats'] ?? recipeData['fats'] ?? 0,
+        'ingredients': recipeData['ingredients'] ?? [],
+        'instructions': recipeData['instructions'] ?? [],
+        'tips': recipeData['tips'] ?? [],
+        'cuisine': recipeData['cuisine'] ?? 'Unknown',
+        'mealType': recipeData['meal_type'] ?? recipeData['mealType'] ?? 'Dinner',
+        'source': recipeSource,
+        'sourceId': recipeData['id'] ?? '',
+        'imageUrl': recipeData['image_url'] ?? recipeData['imageUrl'] ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return docRef.id;
+    } catch (e) {
+      throw 'Failed to save favorite recipe: ${e.toString()}';
+    }
+  }
+
+  // Get all favorite recipes for a user
+  Future<List<Map<String, dynamic>>> getUserFavoriteRecipes(String uid) async {
+    try {
+      QuerySnapshot snapshot = await _favoriteRecipesCollection
+          .where('uid', isEqualTo: uid)
+          .get();
+
+      // Sort in memory by createdAt
+      final recipes = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'id': doc.id,
+          ...data,
+          'createdAt': (data['createdAt'] as Timestamp?)?.toDate().toIso8601String(),
+          '_timestamp': (data['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0,
+        };
+      }).toList();
+      
+      // Sort by timestamp descending (newest first)
+      recipes.sort((a, b) => (b['_timestamp'] as int).compareTo(a['_timestamp'] as int));
+      
+      // Remove the temporary _timestamp field
+      for (var recipe in recipes) {
+        recipe.remove('_timestamp');
+      }
+      
+      return recipes;
+    } catch (e) {
+      throw 'Failed to get favorite recipes: ${e.toString()}';
+    }
+  }
+
+  // Check if a recipe is favorited (by source and sourceId)
+  Future<String?> checkIfFavorite(String uid, String sourceId) async {
+    try {
+      QuerySnapshot snapshot = await _favoriteRecipesCollection
+          .where('uid', isEqualTo: uid)
+          .where('sourceId', isEqualTo: sourceId)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return snapshot.docs.first.id;
+      }
+      return null;
+    } catch (e) {
+      throw 'Failed to check favorite status: ${e.toString()}';
+    }
+  }
+
+  // Remove a recipe from favorites
+  Future<void> removeFavoriteRecipe(String favoriteId) async {
+    try {
+      await _favoriteRecipesCollection.doc(favoriteId).delete();
+    } catch (e) {
+      throw 'Failed to remove favorite recipe: ${e.toString()}';
     }
   }
 }
