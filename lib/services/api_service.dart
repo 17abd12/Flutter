@@ -1,22 +1,19 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/env_config.dart';
 
 /// API Service for FastAPI backend integration
 /// 
 /// Configuration:
-/// - Development: Update baseUrl to your local FastAPI server (e.g., 'http://localhost:8000')
-/// - Production: Update baseUrl to your deployed FastAPI URL or Firebase Cloud Function URL
+/// - API base URL is now loaded from EnvConfig
+/// - See lib/config/env_config.dart for configuration instructions
+/// - Use --dart-define to set environment variables at runtime
 /// 
-/// To switch between FastAPI and Firebase Cloud Functions:
-/// 1. FastAPI: Set baseUrl to FastAPI endpoint
-/// 2. Firebase: Deploy functions and update baseUrl to Cloud Function URL
+/// Example:
+/// flutter run --dart-define=API_BASE_URL=https://your-api.com
 class ApiService {
-  // CONFIGURE YOUR API BASE URL HERE
-  static const String baseUrl = 'http://localhost:8000'; // Change to your FastAPI server URL
-  
-  // Alternative configurations:
-  // static const String baseUrl = 'https://your-api.com'; // Deployed FastAPI
-  // static const String baseUrl = 'https://us-central1-your-project.cloudfunctions.net'; // Firebase Functions
+  // Load base URL from environment configuration
+  final String baseUrl = EnvConfig().getApiBaseUrl();
   
   final http.Client _client = http.Client();
   
